@@ -1,17 +1,15 @@
+import urlRegexSafe from "url-regex-safe"
 logger.info(logger.yellow("- 正在加载 QQBot 适配器插件"))
-
-// 改为动态导入，避免子目录 .js 被 CJS 解析
+// 动态导入子模块（避免子目录 .js 被 CJS 解析）
 const { config, configSave } = await import("./lib/config.js")
 const { Converter } = await import("./lib/converter.js")
 const { connectBot } = await import("./lib/client.js")
-
 const adapter = new (class QQBotAdapter {
   constructor() {
     this.id = "QQBot"
     this.name = "QQBot"
     this.path = "data/QQBot/"
     this.version = "qq-group-bot v1.1.0"
-
     switch (typeof config.toQRCode) {
       case "boolean":
         this.toQRCodeRegExp = config.toQRCode ? urlRegexSafe() : false
@@ -23,7 +21,6 @@ const adapter = new (class QQBotAdapter {
         this.toQRCodeRegExp = urlRegexSafe(config.toQRCode)
         break
     }
-
     this.sep = ":"
     if (process.platform === "win32") this.sep = ""
     this.bind_user = {}
@@ -300,7 +297,6 @@ const adapter = new (class QQBotAdapter {
     Bot.express.quiet.push(`/${this.name}`)
     for (const token of config.token) await Bot.sleep(5000, connectBot(this, token))
   }
-
   makeWebHook(req) {
     const appid = req.headers["x-bot-appid"]
     if (!(appid in this.appid)) return Bot.makeLog("warn", "找不到对应 QQBot", appid)
@@ -309,7 +305,6 @@ const adapter = new (class QQBotAdapter {
     if ("t" in req.body) this.appid[appid].sdk.dispatchEvent(req.body.t, req.body)
     req.res.sendStatus(200)
   }
-
   async makeWebHookSign(id, req, secret) {
     const { sign } = (await import("tweetnacl")).default
     const { plain_token, event_ts } = req.body.d
@@ -324,11 +319,8 @@ const adapter = new (class QQBotAdapter {
     req.res.send({ plain_token, signature })
   }
 })()
-
 Bot.adapter.push(adapter)
-
-// 动态导入管理插件，并注入依赖
+// 动态导入管理插件并注入依赖
 const { QQBotAdmin } = await import("./apps/admin.js")
 new QQBotAdmin(config, configSave, adapter)
-
 logger.info(logger.green("- QQBot 适配器插件 加载完成"))
