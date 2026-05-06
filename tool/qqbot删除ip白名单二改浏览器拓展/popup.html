@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { width: 360px; padding: 16px; font-family: system-ui; }
+    .section { margin-bottom: 12px; }
+    label { display: block; font-weight: bold; margin-bottom: 4px; }
+    select, input, button { width: 100%; padding: 6px; margin-bottom: 8px; }
+    #ip-list { margin-bottom: 6px; }
+    .ip-item { display: flex; gap: 4px; margin-bottom: 4px; }
+    .ip-item input { flex: 1; }
+    .ip-item button { width: 32px; }
+    #qr-code { display: flex; justify-content: center; margin: 12px 0; }
+    #status { color: #666; word-break: break-all; }
+    .hidden { display: none !important; }
+    .actions { display: flex; gap: 8px; }
+    .actions button { flex: 1; }
+  </style>
+</head>
+<body>
+  <div id="app-selection" class="section">
+    <label>选择机器人应用</label>
+    <select id="app-select"><option>加载中...</option></select>
+    <button id="refresh-apps">刷新列表</button>
+  </div>
+
+  <div id="status-section" class="section">
+    <label>当前白名单状态</label>
+    <pre id="status-text">点击应用查看</pre>
+  </div>
+
+  <div id="operation-section" class="section hidden">
+    <label>操作</label>
+    <div class="actions">
+      <button id="btn-close">关闭白名单</button>
+      <button id="btn-open">开启白名单</button>
+    </div>
+  </div>
+
+  <!-- 开启白名单时显示 IP 输入区域 -->
+  <div id="ip-section" class="section hidden">
+    <label>白名单 IP 地址</label>
+    <div id="ip-list"></div>
+    <button id="add-ip">➕ 添加 IP</button>
+  </div>
+
+  <!-- 扫码区域 -->
+  <div id="scan-section" class="section hidden">
+    <label>安全验证</label>
+    <p>请用手机 QQ 扫描下方二维码</p>
+    <div id="qr-code"></div>
+    <p id="scan-hint">等待扫码...</p>
+  </div>
+
+  <div id="message-bar" style="color: red; margin-top: 8px;"></div>
+
+  <script src="lib/qrcode.min.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

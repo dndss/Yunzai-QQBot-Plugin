@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "QQBot IP 白名单管理",
+  "version": "1.0",
+  "description": "一键管理 QQ 开放平台机器人的 IP 白名单（开启/关闭/添加）",
+  "permissions": [
+    "cookies",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://q.qq.com/*",
+    "https://bot.q.qq.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "QQBot IP 白名单"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
