@@ -1,4 +1,3 @@
-import urlRegexSafe from "url-regex-safe"
 logger.info(logger.yellow("- 正在加载 QQBot 适配器插件"))
 // 动态导入子模块（避免子目录 .js 被 CJS 解析）
 const { config, configSave } = await import("./lib/config.js")
@@ -10,17 +9,6 @@ const adapter = new (class QQBotAdapter {
     this.name = "QQBot"
     this.path = "data/QQBot/"
     this.version = "qq-group-bot v1.1.0"
-    switch (typeof config.toQRCode) {
-      case "boolean":
-        this.toQRCodeRegExp = config.toQRCode ? urlRegexSafe() : false
-        break
-      case "string":
-        this.toQRCodeRegExp = new RegExp(config.toQRCode, "g")
-        break
-      case "object":
-        this.toQRCodeRegExp = urlRegexSafe(config.toQRCode)
-        break
-    }
     this.sep = ":"
     if (process.platform === "win32") this.sep = ""
     this.bind_user = {}
