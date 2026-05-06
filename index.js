@@ -172,7 +172,6 @@ const adapter = new (class QQBotAdapter {
 
   async sendMsg(data, send, msg) {
     const rets = { message_id: [], data: [], error: [] }
-    let msgs
 
     const sendMsgIter = async () => {
       for (const i of msgs)
@@ -189,12 +188,7 @@ const adapter = new (class QQBotAdapter {
         }
     }
 
-    if (!config.markdown[data.self_id] || config.markdown[data.self_id] === "raw")
-      msgs = await this.converter.makeRawMarkdownMsg(data, msg, true)
-    else if (config.markdown[data.self_id] === "legacy") msgs = await this.converter.makeMsg(data, msg)
-    else if (config.markdown[data.self_id] === "inline")
-      msgs = await this.converter.makeRawMarkdownMsg(data, msg)
-    else msgs = await this.converter.makeMarkdownMsg(data, msg)
+    let msgs = await this.converter.makeRawMarkdownMsg(data, msg)
 
     if ((await sendMsgIter()) === false) {
       msgs = await this.converter.makeMsg(data, msg)

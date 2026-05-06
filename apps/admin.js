@@ -17,11 +17,6 @@ export class QQBotAdmin extends plugin {
           permission: config.permission,
         },
         {
-          reg: "^#[Qq]+[Bb]ot[Mm](ark)?[Dd](own)?[0-9]+:",
-          fnc: "Markdown",
-          permission: config.permission,
-        },
-        {
           reg: "^#[Qq]+[Bb]ot绑定用户.+$",
           fnc: "BindUser",
         },
@@ -51,18 +46,6 @@ export class QQBotAdmin extends plugin {
         return false
       }
     }
-    await this._configSave()
-  }
-
-  async Markdown() {
-    let token = this.e.msg
-      .replace(/^#[Qq]+[Bb]ot[Mm](ark)?[Dd](own)?/, "")
-      .trim()
-      .split(":")
-    const bot_id = token.shift()
-    token = token.join(":")
-    this.reply(`Bot ${bot_id} Markdown 模板已设置为 ${token}`, true)
-    this._config.markdown[bot_id] = token
     await this._configSave()
   }
 
