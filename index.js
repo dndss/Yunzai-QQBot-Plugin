@@ -1,6 +1,6 @@
 logger.info(logger.yellow("- 正在加载 QQBot 适配器插件"))
 // 动态导入子模块（避免子目录 .js 被 CJS 解析）
-const { config, configSave } = await import("./lib/config.js")
+const { config } = await import("./lib/config.js")
 const { Converter } = await import("./lib/converter.js")
 const { connectBot } = await import("./lib/client.js")
 const adapter = new (class QQBotAdapter {
@@ -11,7 +11,6 @@ const adapter = new (class QQBotAdapter {
     this.version = "qq-group-bot v1.1.0"
     this.sep = ":"
     if (process.platform === "win32") this.sep = ""
-    this.bind_user = {}
     this.appid = {}
     this.converter = new Converter(this)
     this.config = config
@@ -274,6 +273,10 @@ const adapter = new (class QQBotAdapter {
     return this.recallMsg(data, i => data.bot.sdk.recallGuildMessage(data.channel_id, i, hide), message_id)
   }
 
+  async connect(token) {
+    return connectBot(this, token)
+  }
+
   async load() {
     Bot.express.use(`/${this.name}`, this.makeWebHook.bind(this))
     Bot.express.quiet.push(`/${this.name}`)
@@ -302,7 +305,4 @@ const adapter = new (class QQBotAdapter {
   }
 })()
 Bot.adapter.push(adapter)
-// 动态导入管理插件并注入依赖
-const { QQBotAdmin } = await import("./apps/admin.js")
-new QQBotAdmin(config, configSave, adapter)
 logger.info(logger.green("- QQBot 适配器插件 加载完成"))
