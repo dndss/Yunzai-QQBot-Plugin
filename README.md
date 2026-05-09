@@ -23,24 +23,24 @@
 
 ## 配置说明
 
-插件配置由 `lib/config.js` 提供默认值，运行后会生成 / 使用 QQBot 相关配置文件。
 
+配置文件在 `Yunzai/config/QQBot.yaml` 下
 默认配置项包括：
 
 ```js
-{
-  tips: "",
-  permission: "master",
-  toBotUpload: true,
-  hideGuildRecall: false,
-  imageLength: 3,
-  bot: {
-    sandbox: false,
-    maxRetry: Infinity,
-    timeout: 30000
-  },
-  token: []
-}
+tips:
+  - 欢迎使用 TRSS-Yunzai QQBot Plugin ! 作者：时雨🌌星空
+  - 参考：https://github.com/TimeRainStarSky/Yunzai-QQBot-Plugin
+permission: master
+toBotUpload: true
+hideGuildRecall: false
+imageLength: 3
+bot:
+  sandbox: false
+  maxRetry: .inf
+  timeout: 30000
+token: 
+- 机器人QQ号:appid:token:secret:群/私聊事件开关:频道事件开关
 ```
 
 ### 主要配置项
@@ -77,8 +77,8 @@
 | 第 5 段 | `0` | 不启用群 / 私聊事件 |
 | 第 5 段 | `1` | 启用群 / 私聊事件，即 `GROUP_AT_MESSAGE_CREATE`、`C2C_MESSAGE_CREATE` |
 | 第 5 段 | `2` | 使用 WebHook 模式 |
-| 第 6 段 | `0` | 使用 `PUBLIC_GUILD_MESSAGES` |
-| 第 6 段 | `1` | 使用 `GUILD_MESSAGES` |
+| 第 6 段 | `0` | 使用 `公开频道 PUBLIC_GUILD_MESSAGES` |
+| 第 6 段 | `1` | 使用 `私人频道 GUILD_MESSAGES` |
 
 
 ## 管理指令
@@ -146,6 +146,7 @@ QQBot-Plugin
 ├── wiki
 │   └── wiki.md        # 消息组件说明
 ├── index.js           # 插件入口
+├── index.js.bak       # 原项目插件备份
 ├── package.json       # 依赖信息
 └── README.md          # 项目说明
 ```
