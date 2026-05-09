@@ -143,8 +143,6 @@ QQBot-Plugin
 │   ├── config.js      # 配置管理
 │   ├── converter.js   # 消息转换
 │   └── utils.js       # 工具函数
-├── wiki
-│   └── wiki.md        # 消息组件说明
 ├── index.js           # 插件入口
 ├── index.js.bak       # 原项目插件备份
 ├── package.json       # 依赖信息
