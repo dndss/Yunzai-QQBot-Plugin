@@ -3,6 +3,7 @@ logger.info(logger.yellow("- 正在加载 QQBot 适配器插件"))
 const { config } = await import("./lib/config.js")
 const { Converter } = await import("./lib/converter.js")
 const { connectBot } = await import("./lib/client.js")
+const { translateToOpenid } = await import("./lib/uinMap.js")
 const adapter = new (class QQBotAdapter {
   constructor() {
     this.id = "QQBot"
@@ -185,14 +186,15 @@ const adapter = new (class QQBotAdapter {
     return rets
   }
 
-  sendFriendMsg(data, msg) {
-    const user_id = String(data.user_id).replace(`${data.self_id}${this.sep}`, "")
+  async sendFriendMsg(data, msg) {
+    const user_id = await translateToOpenid(data.bot || data.self_id, String(data.user_id).replace(`${data.self_id}${this.sep}`, ""))
     return this.sendMsg({ ...data, user_id }, msg => data.bot.sdk.sendPrivateMessage(user_id, msg), msg)
   }
 
-  sendGroupMsg(data, msg) {
+  async sendGroupMsg(data, msg) {
     const group_id = String(data.group_id).replace(`${data.self_id}${this.sep}`, "")
-    return this.sendMsg({ ...data, group_id }, msg => data.bot.sdk.sendGroupMessage(group_id, msg), msg)
+    const user_id = data.user_id ? await translateToOpenid(data.bot || data.self_id, String(data.user_id).replace(`${data.self_id}${this.sep}`, "")) : data.user_id
+    return this.sendMsg({ ...data, group_id, user_id }, msg => data.bot.sdk.sendGroupMessage(group_id, msg), msg)
   }
 
   async sendGMsg(data, send, msg) {
