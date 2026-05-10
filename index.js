@@ -10,7 +10,6 @@ const adapter = new (class QQBotAdapter {
     this.path = "data/QQBot/"
     this.version = "qq-group-bot v1.1.0"
     this.sep = ":"
-    if (process.platform === "win32") this.sep = ""
     this.appid = {}
     this.converter = new Converter(this)
     this.config = config
@@ -187,11 +186,13 @@ const adapter = new (class QQBotAdapter {
   }
 
   sendFriendMsg(data, msg) {
-    return this.sendMsg(data, msg => data.bot.sdk.sendPrivateMessage(data.user_id, msg), msg)
+    const user_id = String(data.user_id).replace(`${data.self_id}${this.sep}`, "")
+    return this.sendMsg({ ...data, user_id }, msg => data.bot.sdk.sendPrivateMessage(user_id, msg), msg)
   }
 
   sendGroupMsg(data, msg) {
-    return this.sendMsg(data, msg => data.bot.sdk.sendGroupMessage(data.group_id, msg), msg)
+    const group_id = String(data.group_id).replace(`${data.self_id}${this.sep}`, "")
+    return this.sendMsg({ ...data, group_id }, msg => data.bot.sdk.sendGroupMessage(group_id, msg), msg)
   }
 
   async sendGMsg(data, send, msg) {
@@ -280,7 +281,10 @@ const adapter = new (class QQBotAdapter {
   async load() {
     Bot.express.use(`/${this.name}`, this.makeWebHook.bind(this))
     Bot.express.quiet.push(`/${this.name}`)
-    for (const token of config.token) await Bot.sleep(5000, connectBot(this, token))
+    for (const token of config.token) {
+      await connectBot(this, token)
+      await Bot.sleep(5000)
+    }
   }
   makeWebHook(req) {
     const appid = req.headers["x-bot-appid"]
