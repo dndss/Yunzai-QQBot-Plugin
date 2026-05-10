@@ -9,7 +9,8 @@ const adapter = new (class QQBotAdapter {
     this.name = "QQBot"
     this.path = "data/QQBot/"
     this.version = "qq-group-bot v1.1.0"
-    this.sep = ":" if (process.platform === "win32") this.sep = ""
+    this.sep = ":"
+    if (process.platform === "win32") this.sep = ""
     this.converter = new Converter(this)
     this.config = config
   }
