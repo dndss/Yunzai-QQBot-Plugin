@@ -3,7 +3,7 @@ logger.info(logger.yellow("- 正在加载 QQBot 适配器插件"))
 const { config } = await import("./lib/config.js")
 const { Converter } = await import("./lib/converter.js")
 const { connectBot } = await import("./lib/client.js")
-const { translateToOpenid } = await import("./lib/uinMap.js")
+	const { translateToOpenid, loadMappingsFromFile } = await import("./lib/uinMap.js")
 const adapter = new (class QQBotAdapter {
   constructor() {
     this.id = "QQBot"
@@ -281,6 +281,7 @@ const adapter = new (class QQBotAdapter {
   }
 
   async load() {
+    await loadMappingsFromFile()
     for (const token of config.token) {
       await connectBot(this, token)
       await Bot.sleep(5000)
