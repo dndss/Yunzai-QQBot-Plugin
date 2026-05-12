@@ -284,7 +284,7 @@ const adapter = new (class QQBotAdapter {
     await loadMappingsFromFile()
     for (const token of config.token) {
       await connectBot(this, token)
-      await Bot.sleep(5000)
+      await Bot.sleep(500)
     }
   }
 })()

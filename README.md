@@ -76,28 +76,8 @@ token:
 | --- | --- | --- |
 | 第 5 段 | `0` | 不启用群 / 私聊事件 |
 | 第 5 段 | `1` | 启用群 / 私聊事件，即 `GROUP_AT_MESSAGE_CREATE`、`C2C_MESSAGE_CREATE` |
-| 第 5 段 | `2` | 使用 WebHook 模式 |
 | 第 6 段 | `0` | 使用 `公开频道 PUBLIC_GUILD_MESSAGES` |
 | 第 6 段 | `1` | 使用 `私人频道 GUILD_MESSAGES` |
-
-
-
-## WebHook 说明
-
-插件会注册以下 WebHook 路径：
-
-```text
-/QQBot
-```
-
-当使用 WebHook 模式时，请在 QQ 开放平台后台配置对应回调地址，例如：
-
-```text
-http://你的域名或IP:端口/QQBot
-```
-
-如果平台发起验签请求，插件会根据 `secret` 自动生成并返回签名。
-
 
 ## 目录结构
 
