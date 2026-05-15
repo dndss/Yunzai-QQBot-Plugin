@@ -3,13 +3,13 @@ logger.info(logger.yellow("- 正在加载 QQBot 适配器插件"))
 const { config } = await import("./lib/config.js")
 const { Converter } = await import("./lib/converter.js")
 const { connectBot } = await import("./lib/client.js")
-	const { translateToOpenid, loadMappingsFromFile } = await import("./lib/uinMap.js")
+const { translateToOpenid, loadMappingsFromFile } = await import("./lib/uinMap.js")
 const adapter = new (class QQBotAdapter {
   constructor() {
     this.id = "QQBot"
     this.name = "QQBot"
     this.path = "data/QQBot/"
-    this.version = "qq-group-bot v1.1.0"
+    this.version = "qq-official-bot v1.1.0"
     this.sep = ":"
     if (process.platform === "win32") this.sep = ""
     this.converter = new Converter(this)
