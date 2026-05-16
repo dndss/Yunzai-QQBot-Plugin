@@ -175,9 +175,17 @@ const adapter = new (class QQBotAdapter {
         }
     }
 
-    let msgs = await this.converter.makeRawMarkdownMsg(data, msg)
+    // 生成完整消息（插件通过 segment.reply() 添加的回复引用会正常生成）
+    const fullMsgs = await this.converter.makeRawMarkdownMsg(data, msg)
+
+    // 第一发：剥离回复引用，以主动消息发送
+    let msgs = fullMsgs.map(m => {
+      if (Array.isArray(m) && m[0]?.type === "reply") return m.slice(1)
+      return m
+    })
 
     if ((await sendMsgIter()) === false) {
+      // 主动失败，回滚到带回复引用的普通消息
       msgs = await this.converter.makeMsg(data, msg)
       await sendMsgIter()
     }
@@ -199,7 +207,13 @@ const adapter = new (class QQBotAdapter {
 
   async sendGMsg(data, send, msg) {
     const rets = { message_id: [], data: [], error: [] }
-    let msgs = await this.converter.makeGuildMsg(data, msg)
+    // 生成完整消息（插件通过 segment.reply() 添加的回复引用会正常生成）
+    const fullMsgs = await this.converter.makeGuildMsg(data, msg)
+    // 第一发：剥离回复引用，以主动消息发送
+    let msgs = fullMsgs.map(m => {
+      if (Array.isArray(m) && m[0]?.type === "reply") return m.slice(1)
+      return m
+    })
     const sendMsgIter = async () => {
       for (const i of msgs)
         try {
@@ -215,6 +229,7 @@ const adapter = new (class QQBotAdapter {
         }
     }
     if ((await sendMsgIter()) === false) {
+      // 主动失败，回滚到带回复引用的频道消息
       msgs = await this.converter.makeGuildMsg(data, msg)
       await sendMsgIter()
     }
