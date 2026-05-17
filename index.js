@@ -185,8 +185,8 @@ const adapter = new (class QQBotAdapter {
     })
 
     if ((await sendMsgIter()) === false) {
-      // 主动失败，回滚到带回复引用的普通消息
-      msgs = await this.converter.makeMsg(data, msg)
+      // 主动失败，回滚到带回复引用的 Markdown 消息
+      msgs = fullMsgs
       await sendMsgIter()
     }
 
@@ -230,7 +230,7 @@ const adapter = new (class QQBotAdapter {
     }
     if ((await sendMsgIter()) === false) {
       // 主动失败，回滚到带回复引用的频道消息
-      msgs = await this.converter.makeGuildMsg(data, msg)
+      msgs = fullMsgs
       await sendMsgIter()
     }
     return rets
