@@ -304,4 +304,5 @@ const adapter = new (class QQBotAdapter {
   }
 })()
 Bot.adapter.push(adapter)
+await import("./app/bind.js")
 logger.info(logger.green("- QQBot 适配器插件 加载完成"))
