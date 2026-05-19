@@ -4,6 +4,7 @@ const { config } = await import("./lib/config.js")
 const { Converter } = await import("./lib/converter.js")
 const { connectBot } = await import("./lib/client.js")
 const { translateToOpenid, loadMappingsFromFile } = await import("./lib/uinMap.js")
+const { translateGroupToOpenid } = await import("./lib/groupMap.js")
 const adapter = new (class QQBotAdapter {
   constructor() {
     this.id = "QQBot"
@@ -200,7 +201,12 @@ const adapter = new (class QQBotAdapter {
   }
 
   async sendGroupMsg(data, msg) {
-    const group_id = String(data.group_id).replace(`${data.self_id}${this.sep}`, "")
+    let group_id = String(data.group_id).replace(`${data.self_id}${this.sep}`, "")
+    // 反向映射：真实群号 → OpenID（SDK 发消息必须用 OpenID）
+    if (/^\d{5,15}$/.test(group_id)) {
+      const openid = await translateGroupToOpenid(data.bot || data.self_id, group_id)
+      if (openid) group_id = openid
+    }
     const user_id = data.user_id ? await translateToOpenid(data.bot || data.self_id, String(data.user_id).replace(`${data.self_id}${this.sep}`, "")) : data.user_id
     return this.sendMsg({ ...data, group_id, user_id }, msg => data.bot.sdk.sendGroupMessage(group_id, msg), msg)
   }
@@ -278,9 +284,15 @@ const adapter = new (class QQBotAdapter {
     Bot.makeLog("info", `撤回好友消息：[${data.user_id}] ${message_id}`, data.self_id)
     return this.recallMsg(data, i => data.bot.sdk.recallFriendMessage(data.user_id, i), message_id)
   }
-  recallGroupMsg(data, message_id) {
-    Bot.makeLog("info", `撤回群消息：[${data.group_id}] ${message_id}`, data.self_id)
-    return this.recallMsg(data, i => data.bot.sdk.recallGroupMessage(data.group_id, i), message_id)
+  async recallGroupMsg(data, message_id) {
+    let group_id = String(data.group_id).replace(`${data.self_id}${this.sep}`, "")
+    // 反向映射：真实群号 → OpenID（SDK 撤回必须用 OpenID）
+    if (/^\d{5,15}$/.test(group_id)) {
+      const openid = await translateGroupToOpenid(data.bot || data.self_id, group_id)
+      if (openid) group_id = openid
+    }
+    Bot.makeLog("info", `撤回群消息：[${group_id}] ${message_id}`, data.self_id)
+    return this.recallMsg(data, i => data.bot.sdk.recallGroupMessage(group_id, i), message_id)
   }
   recallDirectMsg(data, message_id, hide = config.hideGuildRecall) {
     Bot.makeLog("info", `撤回${hide ? "并隐藏" : ""}频道私聊消息：[${data.guild_id}] ${message_id}`, data.self_id)
@@ -305,4 +317,5 @@ const adapter = new (class QQBotAdapter {
 })()
 Bot.adapter.push(adapter)
 await import("./app/bind.js")
+await import("./app/groupBind.js")
 logger.info(logger.green("- QQBot 适配器插件 加载完成"))
