@@ -4,7 +4,7 @@ const { config } = await import("./lib/config.js")
 const { Converter } = await import("./lib/converter.js")
 const { connectBot } = await import("./lib/client.js")
 const { translateToOpenid, loadMappingsFromFile } = await import("./lib/uinMap.js")
-const { translateGroupToOpenid } = await import("./lib/groupMap.js")
+const { translateGroupToOpenid, loadMappingsFromFile: loadGroupMappings } = await import("./lib/groupMap.js")
 const adapter = new (class QQBotAdapter {
   constructor() {
     this.id = "QQBot"
@@ -309,6 +309,7 @@ const adapter = new (class QQBotAdapter {
 
   async load() {
     await loadMappingsFromFile()
+    await loadGroupMappings()
     for (const token of config.token) {
       await connectBot(this, token)
       await Bot.sleep(500)
