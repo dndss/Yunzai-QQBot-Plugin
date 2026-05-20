@@ -16,6 +16,10 @@ import { saveGroupMapping, getGroupMapping } from "../lib/groupMap.js"
 import cfg from "../../../lib/config/config.js"
 
 async function handleGroupBindMessage (data) {
+  // 仅处理 QQBot 适配器
+  const targetIds = ['QQBot']
+  if (!targetIds.includes(data.bot?.adapter?.id)) return
+
   // 仅处理群消息
   if (data.message_type !== "group") return
 

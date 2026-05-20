@@ -37,6 +37,9 @@ async function verifyAvatar (appid, openid, uin) {
  *   #QQ解绑        → TODO
  */
 async function handleBindMessage (data) {
+  const targetIds = ['QQBot']
+  if (!targetIds.includes(data.bot?.adapter?.id)) return
+
   const rawOpenid = data._raw_user_id || data.sender?.user_id
   if (!rawOpenid || isGuildUserId(rawOpenid)) return
 
