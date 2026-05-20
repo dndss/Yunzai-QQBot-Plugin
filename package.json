@@ -4,7 +4,7 @@
   "author": "TimeRainStarSky",
   "dependencies": {
     "image-size": "^1.2.1",
-    "qq-official-bot": "^1.1.2",
+    "qq-official-bot": "^1.2.0",
     "sharp": "^0.34.5",
     "silk-wasm": "^3.7.1",
     "ulid": "^2.3.0"
