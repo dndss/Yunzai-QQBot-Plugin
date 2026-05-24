@@ -10,7 +10,7 @@ const adapter = new (class QQBotAdapter {
     this.id = "QQBot"
     this.name = "QQBot"
     this.path = "data/QQBot/"
-    this.version = "qq-official-bot v1.1.0"
+    this.version = "qq-official-bot v1.2.1"
     this.sep = ":"
     if (process.platform === "win32") this.sep = ""
     this.converter = new Converter(this)
