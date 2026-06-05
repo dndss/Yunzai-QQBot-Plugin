@@ -55,7 +55,7 @@ export class QRLoginPlugin extends plugin {
             segment.image(
               `base64://${qrBase64.replace("data:image/png;base64,", "")}`,
             ),
-            "二维码过期后将自动刷新",
+            "二维码有效期1分钟",
           ])
         },
 
