@@ -98,7 +98,7 @@ export class QRLoginPlugin extends plugin {
         [`[扫码登录] 失败: ${err.message}`],
         "QQBot-Plugin",
       )
-      await e.reply(`❌ 扫码登录失败：${err.message} 重新发送 #QQbot扫码登录 重试`)
+      await e.reply(`❌ 扫码登录失败：${err.message} 重新发送[#QQbot扫码登录]重试`)
     } finally {
       this._running = false
     }
