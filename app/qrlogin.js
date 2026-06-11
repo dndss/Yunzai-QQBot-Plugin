@@ -49,13 +49,15 @@ export class QRLoginPlugin extends plugin {
 
       const result = await startQRLogin(
         // onQR: 二维码图片就绪（base64 PNG data URL）
-        async (qrBase64) => {
+        async (qrBase64, url) => {
           await e.reply([
-            "请使用手机 QQ 扫描以下二维码进行授权：",
+            "请使用手机 QQ 扫描以下二维码完成授权：",
             segment.image(
               `base64://${qrBase64.replace("data:image/png;base64,", "")}`,
             ),
-            "二维码有效期1分钟",
+            "若二维码无法识别，可复制下方链接到手机 QQ 打开：",
+            url,
+            "二维码有效期 1 分钟，请尽快完成授权",
           ])
         },
 
