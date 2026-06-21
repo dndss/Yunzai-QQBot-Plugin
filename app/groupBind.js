@@ -30,7 +30,7 @@ async function handleGroupBindMessage (data) {
     const text = String(data.raw_message || "").trim()
 
     // --- #群绑定<群号>：绑定当前群 ---
-    const match = text.match(/^(?:#群绑定)\s*(\d{5,18})\s*$/)
+    const match = text.match(/^(?:#群绑定)\s*(\d{5,15})\s*$/)
     if (match) {
       // 仅 master 可操作，非 master 静默不响应
       if (!isMaster) {
@@ -40,7 +40,7 @@ async function handleGroupBindMessage (data) {
 
       const groupUin = match[1]
       const appid = getAppid(data.bot || data.self_id)
-      const groupOpenid = String(data.group_id || "")
+      const groupOpenid = String(data._raw_group_id || data.group_id || "")
 
       Bot.makeLog?.("info", [`[群绑定] 开始绑定: appid=${appid} groupOpenid=${groupOpenid} → ${groupUin}`], data.self_id)
 
@@ -50,7 +50,11 @@ async function handleGroupBindMessage (data) {
       }
 
       try {
-        await saveGroupMapping(appid, groupOpenid, groupUin)
+        const ok = await saveGroupMapping(appid, groupOpenid, groupUin)
+        if (!ok) {
+          await data.reply("群绑定失败：群号格式不正确或当前群信息无效。")
+          return
+        }
         Bot.makeLog?.("info", [`[群绑定] 绑定成功: ${groupUin}`], data.self_id)
         await data.reply(`群绑定成功：${groupUin}`)
       } catch (err) {
@@ -69,7 +73,7 @@ async function handleGroupBindMessage (data) {
       }
 
       const appid = getAppid(data.bot || data.self_id)
-      const groupOpenid = String(data.group_id || "")
+      const groupOpenid = String(data._raw_group_id || data.group_id || "")
       const currentMapping = await getGroupMapping(appid, groupOpenid)
 
       const msg = currentMapping
