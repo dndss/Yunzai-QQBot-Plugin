@@ -59,6 +59,7 @@ permission: master
 toBotUpload: true
 hideGuildRecall: false
 imageLength: 3
+markdownImage: false
 bot:
   sandbox: false
   maxRetry: 10
@@ -74,6 +75,7 @@ token: []
 | `toBotUpload` | `true` | 是否上传到 Bot 侧处理 |
 | `hideGuildRecall` | `false` | 频道撤回时是否隐藏相关提示 |
 | `imageLength` | `3` | 图片上传时压缩的最大大小 单位MB |
+| `markdownImage` | `false` | 是否将普通图片消息段自动转换为 Markdown 图片。默认使用原生图片独立发送，避免本地图片缺少可访问图床 URL 导致 Markdown 图片不可用 |
 | `bot.sandbox` | `false` | 是否使用 QQBot 沙箱环境 |
 | `bot.maxRetry` | `10` | QQBot 请求最大重试次数 |
 | `bot.timeout` | `30000` | QQBot 请求超时时间，单位毫秒 |

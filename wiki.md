@@ -393,6 +393,16 @@ await e.reply([
 ![图片 #宽度px #高度px](图片地址)
 ```
 
+默认情况下，普通图片消息段会作为原生图片独立发送，避免本地图片缺少可访问图床 URL 导致 Markdown 图片不可用。
+
+如果希望普通图片消息段继续自动转换为 Markdown 图片，可以在 `QQBot.yaml` 中设置：
+
+```yaml
+markdownImage: true
+```
+
+设置为 `true` 后，插件会将 `segment.image(file)` 转换为 Markdown 图片；保持默认 `false` 时，消息中的普通文本 / Markdown 会继续合并为 Markdown 消息，`segment.image(file)` 会作为独立原生图片消息发送。
+
 如果无法识别图片宽高，可能会显示为 `#0px #0px`，一般建议尽量使用可访问的公网图片地址。
 
 ### @ 用户与 @全体
