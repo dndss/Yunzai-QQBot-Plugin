@@ -5,7 +5,7 @@
   "dependencies": {
     "@tencent-connect/qqbot-connector": "^1.1.0",
     "image-size": "^1.2.1",
-    "qq-official-bot": "git+https://github.com/dndss/qq-official-bot.git#534e63ce69d6685f8b82104fc17f6fdd8113e568",
+    "qq-official-bot": "git+https://github.com/dndss/qq-official-bot.git#97bd753ba104a3c903a03f6e1639fcc59a66ebe3",
     "qrcode": "^1.5.4",
     "sharp": "^0.34.5",
     "ulid": "^2.3.0"
