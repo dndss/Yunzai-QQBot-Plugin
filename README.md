@@ -20,6 +20,7 @@
 - 支持文本、图片、Markdown、按钮等消息发送
 - 支持 `openid` 与真实 QQ 号的绑定映射
 - 支持 QQBot 群 `openid` 与真实群号的绑定映射
+- 支持查询群成员详情，将 QQ 名称映射为 `sender.nickname`、群昵称映射为 `sender.card`
 - 支持扫码登录添加 QQBot 配置
 - 支持频道、群聊、私聊的基础撤回与发送能力
 
@@ -199,6 +200,17 @@ QQ 官方 Bot 事件中通常拿到的是 `openid`，不是传统 QQ 号或群�
 
 绑定成功后，当前 QQBot 群 `openid` 会映射为真实群号。
 
+## 群成员信息
+
+群消息事件会使用 QQBot 群成员详情接口补充发送者信息：
+
+- 消息事件中的 `author.username` 封装为 `sender.nickname`，表示 QQ 名称
+- 群成员详情中的 `username` 封装为 `sender.card`，表示当前群昵称
+- `member_role` 同步为 `role`、`is_owner` 和 `is_admin`
+- 成员详情按 Bot、群和成员缓存，接口失败时不会阻断消息处理
+
+插件使用维护版 `qq-official-bot` SDK，并将依赖锁定到经过验证的提交。
+
 
 ## 目录结构
 
@@ -212,6 +224,7 @@ QQBot-Plugin
 │   ├── client.js      # QQBot 连接与事件转发
 │   ├── config.js      # 配置加载与保存
 │   ├── converter.js   # 消息段转换
+│   ├── groupMember.js # 群成员详情查询与缓存
 │   ├── groupMap.js    # 群 openid 与真实群号映射
 │   ├── qrlogin.js     # 扫码登录实现
 │   ├── uinMap.js      # 用户 openid 与真实 QQ 号映射
