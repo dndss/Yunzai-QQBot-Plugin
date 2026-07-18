@@ -52,7 +52,8 @@ function getMentionTargets (data) {
   const targets = new Map()
 
   for (const item of data.message || []) {
-    if (item.type !== "at" || item.is_you) continue
+    const isSelf = item.is_you === true || item.is_you === "true"
+    if (item.type !== "at" || isSelf) continue
     const openid = String(item._raw_user_id || item.user_id || item.qq || "")
     if (!openid || openid === "all" || isGuildUserId(openid) || botIds.has(openid)) continue
     targets.set(openid, {
