@@ -6,6 +6,7 @@ const { connectBot } = await import("./lib/client.js")
 const { isQQUin, loadMappingsFromFile } = await import("./lib/uinMap.js")
 const { loadMappingsFromFile: loadGroupMappings } = await import("./lib/groupMap.js")
 const { installMessageSender } = await import("./lib/messageSender.js")
+const { getRecordByMsgId } = await import("./lib/msgIdxCache.js")
 const adapter = new (class QQBotAdapter {
   constructor() {
     this.id = "QQBot"
@@ -112,6 +113,11 @@ const adapter = new (class QQBotAdapter {
       recallMsg: message_id => this.recallGroupMsg(i, message_id),
       pickMember: user_id => this.pickMember(id, group_id, user_id),
       getMemberMap: () => i.bot.gml.get(group_id),
+      /** QQBot 无拉取历史消息接口，以 message_id 作为 seq 查本地消息缓存 */
+      getChatHistory: async (seq, cnt = 1) => {
+        const record = await getRecordByMsgId(id, seq)
+        return record ? [record] : []
+      },
     }
   }
 
