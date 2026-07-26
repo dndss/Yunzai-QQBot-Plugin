@@ -3,7 +3,7 @@ logger.info(logger.yellow("- 正在加载 QQBot 适配器插件"))
 const { config } = await import("./lib/config.js")
 const { Converter } = await import("./lib/converter.js")
 const { connectBot } = await import("./lib/client.js")
-const { loadMappingsFromFile } = await import("./lib/uinMap.js")
+const { isQQUin, loadMappingsFromFile } = await import("./lib/uinMap.js")
 const { loadMappingsFromFile: loadGroupMappings } = await import("./lib/groupMap.js")
 const { installMessageSender } = await import("./lib/messageSender.js")
 const adapter = new (class QQBotAdapter {
@@ -69,7 +69,12 @@ const adapter = new (class QQBotAdapter {
       ...i,
       sendMsg: msg => this.sendFriendMsg(i, msg),
       recallMsg: message_id => this.recallFriendMsg(i, message_id),
-      getAvatarUrl: () => `https://q.qlogo.cn/qqapp/${i.bot.info.appid}/${i.user_id}/0`,
+      getAvatarUrl: (size = 100) => {
+        const userId = i._raw_user_id || i.user_id
+        if (isQQUin(userId))
+          return `https://q.qlogo.cn/g?b=qq&nk=${userId}&s=${size}`
+        return `https://q.qlogo.cn/qqapp/${i.bot.info.appid}/${userId}/0`
+      },
     }
   }
 
@@ -88,6 +93,7 @@ const adapter = new (class QQBotAdapter {
     return {
       ...this.pickFriend(id, user_id),
       ...i,
+      getAvatarUrl: size => this.pickFriend(id, i._raw_user_id || user_id).getAvatarUrl(size),
     }
   }
 
