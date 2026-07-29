@@ -77,10 +77,23 @@ token: []
 | `hideGuildRecall` | `false` | 频道撤回时是否隐藏相关提示 |
 | `imageLength` | `3` | 图片上传时压缩的最大大小 单位MB |
 | `markdownImage` | `false` | 是否将普通图片消息段自动转换为 Markdown 图片。默认使用原生图片独立发送，避免本地图片缺少可访问图床 URL 导致 Markdown 图片不可用 |
-| `imageRetryButton` | `true` | `markdownImage` 开启时，为自动转换的 Markdown 图片附加重发按钮；单独发送一张图片时按钮与图片合并在同一条 Markdown，其他情况按钮单独发送。图片内容缓存 5 分钟，点击后生成新的临时 URL 和重发按钮，不会重新执行原命令。`markdownImage` 关闭时此配置不生效 |
+| `imageRetryButton` | `true` | `markdownImage` 开启时，为自动转换的 Markdown 图片附加重发按钮；解析结果没有其他按钮时，重发按钮合并到最后一条 Markdown，已有按钮时则单独发送。图片内容缓存 5 分钟，点击后生成新的临时 URL 和重发按钮，不会重新执行原命令。`markdownImage` 关闭时此配置不生效 |
 | `bot.sandbox` | `false` | 是否使用 QQBot 沙箱环境 |
 | `bot.maxRetry` | `10` | QQBot 请求最大重试次数 |
 | `bot.timeout` | `30000` | QQBot 请求超时时间，单位毫秒 |
+
+### URL 文件上传
+
+群聊和私聊发送 `file` 消息段时，如果文件来源是 HTTP/HTTPS URL，插件会在调用
+QQBot SDK 前将文件流式缓存到 `temp/QQBot/file-upload`，再以本地路径交给 SDK
+分片上传。缓存文件会在该条消息发送成功或失败后立即删除；回复失败转主动发送时
+会复用同一缓存文件。
+
+普通文件的硬限制为 200 MiB（`200 * 1024 * 1024` 字节）：
+
+- URL 提供有效 `Content-Length` 且超过限制时，不下载文件，直接返回“文件过大”。
+- 无法提前确定大小时，下载过程中实时累计字节数；超过限制会立即中止并删除残片。
+- 该处理仅应用于 `file` 消息段，不改变图片、视频和语音的现有发送逻辑。
 
 
 ## 添加 Bot 账号
