@@ -31,10 +31,11 @@
 - Redis 需正常可用，用户与群映射会写入 Redis
 - QQ 官方 Bot 需要已在 QQ 开放平台创建并具备对应事件权限
 
-## 安装依赖
+## 安装教程 
 
 插件使用的 `qq-official-bot` SDK为fork二改 并通过 pnpm 本地链接加载。进入插件目录后安装依赖 详情请查看lib\modules\qq-official-bot下的README.md
 ```bash
+git clone --depth 1 https://github.com/dndss/Yunzai-QQBot-Plugin ./plugins/QQBot-Plugin
 cd plugins/QQBot-Plugin
 pnpm install
 ```
