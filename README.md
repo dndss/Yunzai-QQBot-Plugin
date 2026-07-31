@@ -33,12 +33,13 @@
 
 ## 安装依赖
 
-进入插件目录后安装依赖：
-
+插件使用的 `qq-official-bot` SDK为fork二改 并通过 pnpm 本地链接加载。进入插件目录后安装依赖 详情请查看lib\modules\qq-official-bot下的README.md
 ```bash
 cd plugins/QQBot-Plugin
-npm install
+pnpm install
 ```
+
+
 
 如果 `sharp` 安装失败，请根据当前系统环境检查 Node.js 版本、网络源、编译环境或预编译包下载情况。
 
@@ -223,7 +224,7 @@ QQ 官方当前不提供单个群成员详情查询接口，插件直接使用�
 - `author.bot` 和 `author.union_openid` 直接保留到 `sender`
 - 事件未提供 `sender.card`、`joined_at` 或 `join_time` 时，插件不会自行补造
 
-插件使用维护版 `qq-official-bot` SDK，并将依赖锁定到经过验证的提交。
+插件内置经过验证的维护版 `qq-official-bot` SDK 运行快照，不再从远程仓库安装 SDK 本体。
 
 
 ## 目录结构
@@ -239,6 +240,8 @@ QQBot-Plugin
 │   ├── config.js      # 配置加载与保存
 │   ├── converter.js   # 消息段转换
 │   ├── groupMap.js    # 群 openid 与真实群号映射
+│   ├── modules
+│   │   └── qq-official-bot  # 内置 QQBot SDK 运行产物
 │   ├── qrlogin.js     # 扫码登录实现
 │   ├── uinMap.js      # 用户 openid 与真实 QQ 号映射
 │   └── utils.js       # 通用工具函数

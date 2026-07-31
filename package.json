@@ -3,11 +3,16 @@
   "type": "module",
   "author": "TimeRainStarSky",
   "dependencies": {
+    "@noble/curves": "^1.6.0",
     "@tencent-connect/qqbot-connector": "^1.1.0",
+    "axios": "1.16.1",
+    "formdata-node": "^6.0.3",
     "image-size": "^1.2.1",
-    "qq-official-bot": "git+https://github.com/dndss/qq-official-bot.git#master",
+    "log4js": "^6.9.1",
+    "qq-official-bot": "link:lib/modules/qq-official-bot",
     "qrcode": "^1.5.4",
     "sharp": "^0.34.5",
-    "ulid": "^2.3.0"
+    "ulid": "^2.3.0",
+    "ws": "^8.20.1"
   }
 }
