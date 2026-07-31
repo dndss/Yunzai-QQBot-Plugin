@@ -112,8 +112,12 @@ await e.reply(segment.button(
 | --- | --- |
 | 不写 | 所有人都可以点击。 |
 | `"admin"` | 仅管理员可以点击。 |
+| `"master"` | 仅当前 Bot 配置的主人可以点击。 |
 | `"123456789"` | 仅指定用户 ID 可以点击。 |
 | `["123456789", "987654321"]` | 仅指定用户 ID 列表可以点击。 |
+
+`"master"` 会读取当前 Bot 的主人数组。数组中的 QQ 号会通过 UIN 映射转换为
+`openid`，已经是 `openid` 的值则会原样使用。
 
 示例：
 
@@ -124,6 +128,11 @@ segment.button(
       text: "管理员操作",
       callback: "#管理操作",
       permission: "admin"
+    },
+    {
+      text: "主人操作",
+      callback: "#主人操作",
+      permission: "master"
     },
     {
       text: "仅你可点",
