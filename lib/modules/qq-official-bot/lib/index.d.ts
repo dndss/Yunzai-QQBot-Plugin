@@ -1713,6 +1713,10 @@ export namespace Message {
     type MessageRet = {
         id: string;
         timestamp: number;
+        ext_info?: {
+            ref_idx?: string;
+            [key: string]: unknown;
+        };
     };
     type Audit = {
         message_audit: {
@@ -2132,7 +2136,7 @@ export class Client<T extends ReceiverMode, M extends ApplicationPlatform = Appl
     nickname: string;
     status: number;
     ws: WebSocket;
-    get receiver(): import("./receivers").ResolveReceiver<T, M>;
+    get receiver(): ResolveReceiver<T, M>;
     constructor(config: Client.Config<T, M>);
     removeAt(payload: Dict): void;
     private completeGroupAtMention;
@@ -2281,6 +2285,10 @@ export interface SendOptions {
 export interface SendResult {
     id: string;
     timestamp: number;
+    ext_info?: {
+        ref_idx?: string;
+        [key: string]: unknown;
+    };
     [key: string]: any;
 }
 export class MessageService {
@@ -2563,7 +2571,7 @@ export class Bot<T extends ReceiverMode = ReceiverMode, M extends ApplicationPla
      * @param channel_id 频道id
      * @param role_id 角色id
      */
-    getChannelPermissionOfRole(channel_id: string, role_id: string): Promise<import("./types").ChannelRolePermissions>;
+    getChannelPermissionOfRole(channel_id: string, role_id: string): Promise<ChannelRolePermissions>;
     /**
      * 设置频道公告
      * @param guild_id
