@@ -63,6 +63,7 @@ toBotUpload: true
 hideGuildRecall: false
 imageLength: 3
 markdownImage: false
+forceVerifyImageResource: false
 bot:
   sandbox: false
   maxRetry: 10
@@ -79,7 +80,7 @@ token: []
 | `hideGuildRecall` | `false` | 频道撤回时是否隐藏相关提示 |
 | `imageLength` | `3` | 图片上传时压缩的最大大小 单位MB |
 | `markdownImage` | `false` | 是否将普通图片消息段自动转换为 Markdown 图片。默认使用原生图片独立发送，避免本地图片缺少可访问图床 URL 导致 Markdown 图片不可用 |
-| `imageRetryButton` | `true` | `markdownImage` 开启时，为自动转换的 Markdown 图片附加重发按钮；解析结果没有其他按钮时，重发按钮合并到最后一条 Markdown，已有按钮时则单独发送。图片内容缓存 5 分钟，点击后生成新的临时 URL 和重发按钮，不会重新执行原命令。`markdownImage` 关闭时此配置不生效 |
+| `forceVerifyImageResource` | `false` | 是否为群聊和 C2C 私聊 Markdown 开启图片资源转存校验。开启后，图片转存失败会中断发送；自动转换的 Markdown 图片收到 `304010` 后会使用缓存图片重新生成 URL，并重试一次。频道消息不受影响 |
 | `bot.sandbox` | `false` | 是否使用 QQBot 沙箱环境 |
 | `bot.maxRetry` | `10` | QQBot 请求最大重试次数 |
 | `bot.timeout` | `30000` | QQBot 请求超时时间，单位毫秒 |
