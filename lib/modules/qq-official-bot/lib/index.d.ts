@@ -1260,6 +1260,8 @@ export interface MessageElemMap {
         content: string;
         custom_template_id: never;
         params: never;
+        /** 群聊和 C2C 私聊是否校验 Markdown 图片转存结果 */
+        force_verify_image_resource?: boolean;
     } | {
         custom_template_id: string;
         content: never;
@@ -1267,6 +1269,8 @@ export interface MessageElemMap {
             key: string;
             values: string;
         }[];
+        /** 群聊和 C2C 私聊是否校验 Markdown 图片转存结果 */
+        force_verify_image_resource?: boolean;
     };
     keyboard: {
         id: string;
