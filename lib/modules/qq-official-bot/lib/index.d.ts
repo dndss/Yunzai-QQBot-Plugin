@@ -1667,6 +1667,15 @@ export namespace Group {
         id: string;
         name: string;
     }
+    /** QQ OpenAPI 群基本信息响应 */
+    interface ApiInfo {
+        group_openid: string;
+        group_name: string;
+        group_finger_memo: string;
+        group_class_text: string;
+        group_tags: string[];
+        group_member_num: number;
+    }
 }
 export namespace GroupMember {
     interface Info {
@@ -2542,6 +2551,17 @@ export class BotService {
     replyAction(actionId: string, code?: ActionNoticeEvent.ReplyCode): Promise<boolean>;
 }
 /**
+ * 群服务类 - 负责群基本信息相关 API
+ */
+export class GroupService {
+    private request;
+    constructor(request: AxiosInstance);
+    /**
+     * 获取群基本信息
+     */
+    getInfo(groupOpenid: string): Promise<Group.ApiInfo>;
+}
+/**
  * 服务模块导出
  * 集中导出所有API服务类
  */
@@ -2564,6 +2584,7 @@ export class Bot<T extends ReceiverMode = ReceiverMode, M extends ApplicationPla
     readonly threadService: ThreadService;
     readonly audioService: AudioService;
     readonly botService: BotService;
+    readonly groupService: GroupService;
     constructor(config: Bot.Config<T, M>);
     get middleware(): Middleware<M>;
     /**
@@ -2761,6 +2782,11 @@ export class Bot<T extends ReceiverMode = ReceiverMode, M extends ApplicationPla
      * @param group_id
      */
     getGroupMemberList(group_id: string): Promise<void>;
+    /**
+     * 获取群基本信息
+     * @param group_id 群 OpenID
+     */
+    getGroupInfo(group_id: string): Promise<Group.ApiInfo>;
     /**
      * 获取好友列表
      */

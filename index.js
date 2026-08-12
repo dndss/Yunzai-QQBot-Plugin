@@ -4,7 +4,10 @@ const { config } = await import("./lib/config.js")
 const { Converter } = await import("./lib/converter.js")
 const { connectBot } = await import("./lib/client.js")
 const { isQQUin, loadMappingsFromFile } = await import("./lib/uinMap.js")
-const { loadMappingsFromFile: loadGroupMappings } = await import("./lib/groupMap.js")
+const {
+  loadMappingsFromFile: loadGroupMappings,
+  translateGroupToOpenid,
+} = await import("./lib/groupMap.js")
 const { installMessageSender } = await import("./lib/messageSender.js")
 const { getRecordByMsgId } = await import("./lib/msgIdxCache.js")
 const adapter = new (class QQBotAdapter {
@@ -28,6 +31,29 @@ const adapter = new (class QQBotAdapter {
   }
   getMemberMap(id) {
     return Bot.getMap(`${this.path}${id}/Member`)
+  }
+
+  /** 按 Yunzai 群对象格式获取 QQ OpenAPI 群基本信息 */
+  async getGroupInfo(data, no_cache = false, add = false) {
+    const group_id = String(data.group_id)
+    const cached = data.bot.gl.get(group_id)
+    if (!no_cache && cached?.group_name) return cached
+
+    let group_openid = data._raw_group_id
+    if (!group_openid || group_openid === group_id)
+      group_openid = await translateGroupToOpenid(data.bot, group_id) || group_id
+
+    const raw = await data.bot.sdk.getGroupInfo(group_openid)
+    const info = {
+      ...raw,
+      group_id,
+      group_name: raw.group_name,
+      group_openid: raw.group_openid || group_openid,
+      _raw_group_id: raw.group_openid || group_openid,
+      member_count: raw.group_member_num,
+    }
+    if (add || data.bot.gl.has(group_id)) await data.bot.gl.set(group_id, info)
+    return info
   }
 
   async setFriendMap(data) {
@@ -111,6 +137,7 @@ const adapter = new (class QQBotAdapter {
       ...i,
       sendMsg: msg => this.sendGroupMsg(i, msg),
       recallMsg: message_id => this.recallGroupMsg(i, message_id),
+      getInfo: (no_cache, add) => this.getGroupInfo(i, no_cache, add),
       pickMember: user_id => this.pickMember(id, group_id, user_id),
       getMemberMap: () => i.bot.gml.get(group_id),
       /** QQBot 无拉取历史消息接口，以 message_id 作为 seq 查本地消息缓存 */
