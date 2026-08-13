@@ -1676,6 +1676,54 @@ export namespace Group {
         group_tags: string[];
         group_member_num: number;
     }
+    /** QQ OpenAPI 机器人群内状态响应 */
+    interface BotState {
+        member_openid: string;
+        /** 入群时间（RFC3339 格式） */
+        joined_at: string;
+        allow_proactive_msg: boolean;
+        recv_msg_setting: 'all' | 'only_mention' | 'mention_and_context';
+        member_role: 'member' | 'owner' | 'admin';
+    }
+    /** 群成员禁言操作类型 */
+    type MemberMuteOperation = 'add' | 'update' | 'del';
+    /** 设置群成员禁言请求项 */
+    interface SetMemberMuteState {
+        op: MemberMuteOperation;
+        member_openid: string;
+        /** 禁言到期时间（RFC3339 格式）；解除禁言时可传空字符串 */
+        mute_expire_at?: string;
+    }
+    /** 当前处于禁言状态的群成员 */
+    interface MemberMuteState {
+        member_openid: string;
+        mute_expire_at: string;
+        username: string;
+        union_openid: string;
+    }
+    interface MuteScheduleRule {
+        task_id: string;
+        start_at: string;
+        end_at: string;
+        enabled: boolean;
+    }
+    interface MuteRecurringRule {
+        task_id: string;
+        weekdays: number[];
+        start_time: string;
+        end_time: string;
+        enabled: boolean;
+    }
+    interface GlobalMuteRule {
+        mode: 'none' | 'always' | 'schedule';
+        schedule_rules: MuteScheduleRule[];
+        recurring_rules: MuteRecurringRule[];
+    }
+    /** 查询群禁言状态响应 */
+    interface RestrictChatSetting {
+        global_rule: GlobalMuteRule;
+        members: MemberMuteState[];
+    }
 }
 export namespace GroupMember {
     interface Info {
@@ -2560,6 +2608,18 @@ export class GroupService {
      * 获取群基本信息
      */
     getInfo(groupOpenid: string): Promise<Group.ApiInfo>;
+    /**
+     * 获取机器人群内状态
+     */
+    getBotState(groupOpenid: string): Promise<Group.BotState>;
+    /**
+     * 查询群禁言状态
+     */
+    getRestrictChatSetting(groupOpenid: string): Promise<Group.RestrictChatSetting>;
+    /**
+     * 设置群成员禁言，单次最多操作 10 个成员
+     */
+    setMemberMuteState(groupOpenid: string, members: Group.SetMemberMuteState[]): Promise<boolean>;
 }
 /**
  * 服务模块导出
@@ -2787,6 +2847,22 @@ export class Bot<T extends ReceiverMode = ReceiverMode, M extends ApplicationPla
      * @param group_id 群 OpenID
      */
     getGroupInfo(group_id: string): Promise<Group.ApiInfo>;
+    /**
+     * 获取机器人群内状态
+     * @param group_id 群 OpenID
+     */
+    getGroupBotState(group_id: string): Promise<Group.BotState>;
+    /**
+     * 查询群禁言状态
+     * @param group_id 群 OpenID
+     */
+    getGroupRestrictChatSetting(group_id: string): Promise<Group.RestrictChatSetting>;
+    /**
+     * 设置群成员禁言
+     * @param group_id 群 OpenID
+     * @param members 群成员禁言操作列表，单次最多 10 个
+     */
+    setGroupMemberMuteState(group_id: string, members: Group.SetMemberMuteState[]): Promise<boolean>;
     /**
      * 获取好友列表
      */

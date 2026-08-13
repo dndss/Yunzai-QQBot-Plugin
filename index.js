@@ -3,7 +3,7 @@ logger.info(logger.yellow("- 正在加载 QQBot 适配器插件"))
 const { config } = await import("./lib/config.js")
 const { Converter } = await import("./lib/converter.js")
 const { connectBot } = await import("./lib/client.js")
-const { isQQUin, loadMappingsFromFile } = await import("./lib/uinMap.js")
+const { isQQUin, loadMappingsFromFile, translateToOpenid } = await import("./lib/uinMap.js")
 const {
   loadMappingsFromFile: loadGroupMappings,
   translateGroupToOpenid,
@@ -37,13 +37,16 @@ const adapter = new (class QQBotAdapter {
   async getGroupInfo(data, no_cache = false, add = false) {
     const group_id = String(data.group_id)
     const cached = data.bot.gl.get(group_id)
-    if (!no_cache && cached?.group_name) return cached
+    if (!no_cache && cached?.group_name && cached?.member_role) return cached
 
     let group_openid = data._raw_group_id
     if (!group_openid || group_openid === group_id)
       group_openid = await translateGroupToOpenid(data.bot, group_id) || group_id
 
-    const raw = await data.bot.sdk.getGroupInfo(group_openid)
+    const [raw, { member_role }] = await Promise.all([
+      data.bot.sdk.getGroupInfo(group_openid),
+      data.bot.sdk.getGroupBotState(group_openid),
+    ])
     const info = {
       ...raw,
       group_id,
@@ -51,6 +54,7 @@ const adapter = new (class QQBotAdapter {
       group_openid: raw.group_openid || group_openid,
       _raw_group_id: raw.group_openid || group_openid,
       member_count: raw.group_member_num,
+      member_role,
     }
     if (add || data.bot.gl.has(group_id)) await data.bot.gl.set(group_id, info)
     return info
@@ -121,6 +125,8 @@ const adapter = new (class QQBotAdapter {
       ...this.pickFriend(id, user_id),
       ...i,
       getAvatarUrl: size => this.pickFriend(id, i._raw_user_id || user_id).getAvatarUrl(size),
+      /** 按 Yunzai 成员对象约定禁言当前成员 */
+      mute: seconds => this.pickGroup(id, group_id).muteMember(user_id, seconds),
     }
   }
 
@@ -133,13 +139,40 @@ const adapter = new (class QQBotAdapter {
       bot: Bot[id],
       group_id: group_id.replace(`${id}${this.sep}`, ""),
     }
+    const memberRole = i.member_role
     return {
       ...i,
+      is_owner: memberRole === "owner",
+      is_admin: memberRole === "admin" || memberRole === "owner",
       sendMsg: msg => this.sendGroupMsg(i, msg),
       recallMsg: message_id => this.recallGroupMsg(i, message_id),
       getInfo: (no_cache, add) => this.getGroupInfo(i, no_cache, add),
       pickMember: user_id => this.pickMember(id, group_id, user_id),
       getMemberMap: () => i.bot.gml.get(group_id),
+      /** 按 Yunzai 约定以秒为单位禁言群成员，传 0 解除禁言 */
+      muteMember: async (user_id, seconds) => {
+        const groupOpenid = await translateGroupToOpenid(i.bot, i.group_id) || i._raw_group_id || i.group_id
+        const memberOpenid = await translateToOpenid(i.bot, String(user_id))
+        const duration = Number(seconds)
+        if (!Number.isFinite(duration) || duration < 0)
+          throw new TypeError("禁言时长必须是大于或等于 0 的秒数")
+
+        if (duration === 0) {
+          return i.bot.sdk.setGroupMemberMuteState(groupOpenid, [{
+            op: "del",
+            member_openid: memberOpenid,
+            mute_expire_at: "",
+          }])
+        }
+
+        const setting = await i.bot.sdk.getGroupRestrictChatSetting(groupOpenid)
+        const muted = setting.members?.some(member => member.member_openid === memberOpenid)
+        return i.bot.sdk.setGroupMemberMuteState(groupOpenid, [{
+          op: muted ? "update" : "add",
+          member_openid: memberOpenid,
+          mute_expire_at: new Date(Date.now() + duration * 1000).toISOString(),
+        }])
+      },
       /** QQBot 无拉取历史消息接口，以 message_id 作为 seq 查本地消息缓存 */
       getChatHistory: async (seq, cnt = 1) => {
         const record = await getRecordByMsgId(id, seq)
