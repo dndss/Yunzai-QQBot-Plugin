@@ -99,6 +99,7 @@ const adapter = new (class QQBotAdapter {
     return {
       ...i,
       sendMsg: msg => this.sendFriendMsg(i, msg),
+      getMsg: message_id => getRecordByMsgId(id, message_id),
       recallMsg: message_id => this.recallFriendMsg(i, message_id),
       getAvatarUrl: (size = 100) => {
         const userId = i._raw_user_id || i.user_id
@@ -145,6 +146,7 @@ const adapter = new (class QQBotAdapter {
       is_owner: memberRole === "owner",
       is_admin: memberRole === "admin" || memberRole === "owner",
       sendMsg: msg => this.sendGroupMsg(i, msg),
+      getMsg: message_id => getRecordByMsgId(id, message_id),
       recallMsg: message_id => this.recallGroupMsg(i, message_id),
       getInfo: (no_cache, add) => this.getGroupInfo(i, no_cache, add),
       pickMember: user_id => this.pickMember(id, group_id, user_id),
