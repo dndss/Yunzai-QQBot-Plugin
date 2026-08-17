@@ -13,6 +13,8 @@ const calls = []
 const adapter = {
   sendGroupMsg: async (data, message) => calls.push(["reply", data, message]),
   recallGroupMsg: async (data, messageId) => calls.push(["recall", data, messageId]),
+  sendFriendMsg: async (data, message) => calls.push(["friend-reply", data, message]),
+  recallFriendMsg: async (data, messageId) => calls.push(["friend-recall", data, messageId]),
 }
 const bot = {
   uin: "10000",
@@ -76,7 +78,32 @@ assert.equal(JSON.stringify(incoming).includes("secret"), false)
 await incoming.reply("reply")
 await incoming.recall()
 assert.equal(calls[0][0], "reply")
+assert.equal(calls[0][1].bot, bot)
 assert.equal(calls[1][0], "recall")
+assert.equal(calls[1][1].bot, bot)
+
+const privateIncoming = await adaptMessageRecord(adapter, bot, {
+  version: MESSAGE_RECORD_VERSION,
+  direction: "incoming",
+  scene: "private",
+  self_id: "10000",
+  msg_idx: "private-idx",
+  message_id: "private-message",
+  raw: {
+    messagetype: "private",
+    subtype: "friend",
+    messageid: "private-message",
+    userid: "FRIEND_OPENID",
+    message: [{ type: "text", data: { text: "private" } }],
+    rawmessage: "private",
+  },
+})
+await privateIncoming.reply("private-reply")
+await privateIncoming.recall()
+assert.equal(calls[2][0], "friend-reply")
+assert.equal(calls[2][1].bot, bot)
+assert.equal(calls[3][0], "friend-recall")
+assert.equal(calls[3][1].bot, bot)
 
 await saveMsgRecord(bot, {
   version: MESSAGE_RECORD_VERSION,
