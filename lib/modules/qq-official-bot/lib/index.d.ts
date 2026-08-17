@@ -459,6 +459,7 @@ export class WebSocketReceiver extends BaseReceiver<WebSocketHandler> {
     private isReconnect;
     private retryCount;
     private isClosed;
+    private lifecycleGeneration;
     private heartbeatTimer;
     private heartbeatTimeoutTimer;
     private lastHeartbeatAck;
@@ -567,6 +568,11 @@ export class WebSocketReceiver extends BaseReceiver<WebSocketHandler> {
      * 断开连接
      */
     private disconnect;
+    /**
+     * 判断异步连接任务是否仍属于当前启动周期。
+     * stop() 会推进 lifecycleGeneration，使等待中的旧重连任务失效。
+     */
+    private isLifecycleActive;
     /**
      * 清理定时器
      */
