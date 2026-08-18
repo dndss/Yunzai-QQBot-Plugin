@@ -1205,6 +1205,8 @@ export enum MusicPlatform {
 export interface Quotable {
     id?: string;
     event_id?: string;
+    /** 当前消息的引用索引，用于 message_reference.message_id */
+    msg_idx?: string;
 }
 export interface ForwardMessageNode {
     index: number;
@@ -1420,8 +1422,10 @@ export const segment: {
     /**
      * 创建回复消息段
      * @param idOrQuotable 消息ID、事件ID或Quotable对象
+     * @param quote 是否引用该消息
+     * @param referenceMsgIdx 引用索引；传入Quotable对象时默认读取对象的msg_idx
      */
-    reply(idOrQuotable: string | Quotable): ReplyElem;
+    reply(idOrQuotable: string | Quotable, quote?: boolean, referenceMsgIdx?: string): ReplyElem;
     /**
      * 创建键盘按钮组消息段
      * @param id 按钮组ID
@@ -1481,6 +1485,7 @@ export class MessageBuilder {
     private appid;
     private isGuild?;
     private source?;
+    private quote;
     private messagePayload;
     private filePayload;
     private buttons;
@@ -1490,7 +1495,8 @@ export class MessageBuilder {
     constructor(appid: string, isGuild?: boolean, source?: {
         id?: string;
         event_id?: string;
-    });
+        msg_idx?: string;
+    }, quote?: boolean);
     /**
      * 构建消息
      */
@@ -1754,6 +1760,8 @@ export class Message {
     group_id?: string;
     id: string;
     message_id: string;
+    /** 当前消息的引用索引，用于后续引用该消息 */
+    msg_idx?: string;
     sender: Message.Sender;
     user_id: string;
     constructor(bot: Bot<ReceiverMode, ApplicationPlatform>, attrs: Dict);
@@ -1805,7 +1813,7 @@ export interface MessageEvent {
 export class PrivateMessageEvent extends Message implements MessageEvent {
     constructor(bot: Bot, sub_type: Message.SubType, payload: Partial<Message>);
     recall(): Promise<boolean>;
-    reply(message: Sendable): Promise<SendResult>;
+    reply(message: Sendable, quote?: boolean): Promise<SendResult>;
 }
 export class MessageAuditEvent {
     bot: Bot;
@@ -1825,7 +1833,7 @@ export class GroupMessageEvent extends Message implements MessageEvent {
     group_id: string;
     group_name: string;
     constructor(bot: Bot, payload: Partial<Message>);
-    reply(message: Sendable): Promise<SendResult>;
+    reply(message: Sendable, quote?: boolean): Promise<SendResult>;
 }
 export class GuildMessageEvent extends Message implements MessageEvent {
     guild_id: string;
@@ -1850,7 +1858,7 @@ export class GuildMessageEvent extends Message implements MessageEvent {
      * 回复消息
      * @param message {Sendable} 回复内容
      */
-    reply(message: Sendable): Promise<SendResult>;
+    reply(message: Sendable, quote?: boolean): Promise<SendResult>;
     /**
      * 消息表态
      * @param type {1|2} 表情类型
@@ -2252,96 +2260,6 @@ export namespace Client {
     } & ReceiveModeConfig<M>[T];
 }
 /**
- * 频道服务类 - 负责所有频道相关的API操作
- */
-export class GuildService {
-    private request;
-    constructor(request: AxiosInstance);
-    /**
-     * 获取频道列表
-     */
-    getList(): Promise<Guild.ApiInfo[]>;
-    /**
-     * 获取频道信息
-     */
-    getInfo(guildId: string): Promise<Guild.ApiInfo>;
-    /**
-     * 频道禁言
-     */
-    mute(guildId: string, seconds: number, endTime?: number): Promise<boolean>;
-    /**
-     * 取消频道禁言
-     */
-    unmute(guildId: string): Promise<boolean>;
-    /**
-     * 获取频道角色列表
-     */
-    getRoles(guildId: string): Promise<Guild.Role[]>;
-    /**
-     * 创建频道角色
-     */
-    createRole(guildId: string, role: RoleCreateParam): Promise<Guild.Role>;
-    /**
-     * 更新频道角色
-     */
-    updateRole(guildId: string, roleId: string, updateInfo: RoleUpdateParam): Promise<Guild.Role>;
-    /**
-     * 删除频道角色
-     */
-    deleteRole(roleId: string): Promise<boolean>;
-    /**
-     * 获取频道可访问API类别
-     */
-    getAccessApis(guildId: string): Promise<ApiPermissionDemand[]>;
-    /**
-     * 申请频道API权限
-     */
-    applyAccess(guildId: string, channelId: string, apiInfo: ApiBaseInfo, desc?: string): Promise<ApiPermissionDemand>;
-    /**
-     * 私有方法：获取频道列表的实现
-     */
-    private _getGuildList;
-}
-/**
- * 子频道服务类 - 负责所有子频道相关的API操作
- */
-export class ChannelService {
-    private request;
-    constructor(request: AxiosInstance);
-    /**
-     * 获取子频道列表
-     */
-    getList(guildId: string): Promise<Channel.ApiInfo[]>;
-    /**
-     * 获取子频道信息
-     */
-    getInfo(channelId: string): Promise<Channel.ApiInfo>;
-    /**
-     * 创建子频道
-     */
-    create(guildId: string, channelInfo: Omit<Channel.Info, 'id'>): Promise<Channel.Info>;
-    /**
-     * 修改子频道
-     */
-    update(channelId: string, updateInfo: ChannelUpdateInfo): Promise<Channel.Info>;
-    /**
-     * 删除子频道
-     */
-    delete(channelId: string): Promise<boolean>;
-    /**
-     * 获取频道置顶消息id列表
-     */
-    getPins(channelId: string): Promise<string[]>;
-    /**
-     * 置顶频道消息
-     */
-    pinMessage(channelId: string, messageId: string): Promise<PinsMessage>;
-    /**
-     * 取消置顶频道消息
-     */
-    unpinMessage(channelId: string, messageId: string): Promise<boolean>;
-}
-/**
  * 消息服务类 - 负责所有消息相关的API操作
  */
 export interface SendOptions {
@@ -2430,6 +2348,96 @@ export class MessageService {
      * 工具方法：延迟
      */
     private delay;
+}
+/**
+ * 频道服务类 - 负责所有频道相关的API操作
+ */
+export class GuildService {
+    private request;
+    constructor(request: AxiosInstance);
+    /**
+     * 获取频道列表
+     */
+    getList(): Promise<Guild.ApiInfo[]>;
+    /**
+     * 获取频道信息
+     */
+    getInfo(guildId: string): Promise<Guild.ApiInfo>;
+    /**
+     * 频道禁言
+     */
+    mute(guildId: string, seconds: number, endTime?: number): Promise<boolean>;
+    /**
+     * 取消频道禁言
+     */
+    unmute(guildId: string): Promise<boolean>;
+    /**
+     * 获取频道角色列表
+     */
+    getRoles(guildId: string): Promise<Guild.Role[]>;
+    /**
+     * 创建频道角色
+     */
+    createRole(guildId: string, role: RoleCreateParam): Promise<Guild.Role>;
+    /**
+     * 更新频道角色
+     */
+    updateRole(guildId: string, roleId: string, updateInfo: RoleUpdateParam): Promise<Guild.Role>;
+    /**
+     * 删除频道角色
+     */
+    deleteRole(roleId: string): Promise<boolean>;
+    /**
+     * 获取频道可访问API类别
+     */
+    getAccessApis(guildId: string): Promise<ApiPermissionDemand[]>;
+    /**
+     * 申请频道API权限
+     */
+    applyAccess(guildId: string, channelId: string, apiInfo: ApiBaseInfo, desc?: string): Promise<ApiPermissionDemand>;
+    /**
+     * 私有方法：获取频道列表的实现
+     */
+    private _getGuildList;
+}
+/**
+ * 子频道服务类 - 负责所有子频道相关的API操作
+ */
+export class ChannelService {
+    private request;
+    constructor(request: AxiosInstance);
+    /**
+     * 获取子频道列表
+     */
+    getList(guildId: string): Promise<Channel.ApiInfo[]>;
+    /**
+     * 获取子频道信息
+     */
+    getInfo(channelId: string): Promise<Channel.ApiInfo>;
+    /**
+     * 创建子频道
+     */
+    create(guildId: string, channelInfo: Omit<Channel.Info, 'id'>): Promise<Channel.Info>;
+    /**
+     * 修改子频道
+     */
+    update(channelId: string, updateInfo: ChannelUpdateInfo): Promise<Channel.Info>;
+    /**
+     * 删除子频道
+     */
+    delete(channelId: string): Promise<boolean>;
+    /**
+     * 获取频道置顶消息id列表
+     */
+    getPins(channelId: string): Promise<string[]>;
+    /**
+     * 置顶频道消息
+     */
+    pinMessage(channelId: string, messageId: string): Promise<PinsMessage>;
+    /**
+     * 取消置顶频道消息
+     */
+    unpinMessage(channelId: string, messageId: string): Promise<boolean>;
 }
 /**
  * 成员服务类 - 负责所有成员相关的API操作
@@ -2637,6 +2645,7 @@ export type ApiResponse<T> = {
     message?: string;
     error?: any;
 };
+import type { SendOptions } from "services/message";
 export class Bot<T extends ReceiverMode = ReceiverMode, M extends ApplicationPlatform = ApplicationPlatform> extends Client<T, M> {
     readonly messageBuilder: MessageBuilder;
     readonly messageService: MessageService;
@@ -2884,7 +2893,7 @@ export class Bot<T extends ReceiverMode = ReceiverMode, M extends ApplicationPla
      * @param message
      * @param source
      */
-    sendPrivateMessage(user_id: string, message: Sendable, source?: Quotable): Promise<SendResult>;
+    sendPrivateMessage(user_id: string, message: Sendable, source?: Quotable, options?: SendOptions): Promise<import("@/services/message").SendResult>;
     /**
      * 撤回私聊消息
      * @param user_id
@@ -2897,7 +2906,7 @@ export class Bot<T extends ReceiverMode = ReceiverMode, M extends ApplicationPla
      * @param message
      * @param source
      */
-    sendGroupMessage(group_id: string, message: Sendable, source?: Quotable): Promise<SendResult>;
+    sendGroupMessage(group_id: string, message: Sendable, source?: Quotable, options?: SendOptions): Promise<import("@/services/message").SendResult>;
     /**
      * 撤回群消息
      * @param group_id
@@ -2925,7 +2934,7 @@ export class Bot<T extends ReceiverMode = ReceiverMode, M extends ApplicationPla
      * @param message
      * @param source
      */
-    sendDirectMessage(guild_id: string, message: Sendable, source?: Quotable): Promise<SendResult>;
+    sendDirectMessage(guild_id: string, message: Sendable, source?: Quotable, options?: SendOptions): Promise<import("@/services/message").SendResult>;
     /**
      * 获取频道私信
      * @param guild_id
@@ -2945,7 +2954,7 @@ export class Bot<T extends ReceiverMode = ReceiverMode, M extends ApplicationPla
      * @param message
      * @param source
      */
-    sendGuildMessage(channel_id: string, message: Sendable, source?: Quotable): Promise<SendResult>;
+    sendGuildMessage(channel_id: string, message: Sendable, source?: Quotable, options?: SendOptions): Promise<import("@/services/message").SendResult>;
     /**
      * 撤回频道消息
      * @param channel_id
