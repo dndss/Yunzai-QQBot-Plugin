@@ -16,7 +16,12 @@ const content = `[群聊的聊天记录]
 
 === 消息 4 ===
 [发送者] 我爱你
-[附件1] 类型:视频 文件名:video.mp4 尺寸:640x1418 大小:514.3KB URL:https://example.com/video.mp4`
+[附件1] 类型:视频 文件名:video.mp4 尺寸:640x1418 大小:514.3KB URL:https://example.com/video.mp4
+
+=== 消息 5 ===
+[消息内容] <faceType=6,faceId="0",ext="eyJ0ZXh0IjoiIn0=">
+[发送者] 我爱你
+[附件1] 类型:动图 文件名:animated.jpg 尺寸:320x320 大小:1.7MB URL:https://example.com/animated.jpg`
 
 const parserBot = Object.create(sdk.Bot.prototype)
 parserBot.removeAt = () => {}
@@ -39,7 +44,7 @@ const event = parserBot.processPayload("event-1", "message.group", {
 
 const forward = event.message[0]
 assert.equal(forward.type, "forward")
-assert.equal(forward.data.nodes.length, 4)
+assert.equal(forward.data.nodes.length, 5)
 assert.equal(forward.data.nodes[0].content, "文本")
 assert.deepEqual(forward.data.nodes[1].attachments[0], {
   index: 1,
@@ -53,6 +58,17 @@ assert.deepEqual(forward.data.nodes[1].attachments[0], {
 })
 assert.equal(forward.data.nodes[2].attachments[0].url, undefined)
 assert.equal(forward.data.nodes[3].attachments[0].type, "video")
+assert.deepEqual(forward.data.nodes[4].attachments[0], {
+  index: 1,
+  type: "image",
+  raw_type: "动图",
+  file_name: "animated.jpg",
+  width: 320,
+  height: 320,
+  size_text: "1.7MB",
+  url: "https://example.com/animated.jpg",
+  animated: true,
+})
 assert.equal(event.attachments[0].url, "https://example.com/outer.jpg")
 
 const nestedEvent = parserBot.processPayload("event-2", "message.group", {
@@ -121,5 +137,7 @@ assert.deepEqual(node.data[2].message[0], {
   text: "[文件：1111.txt，大小：9.4KB]",
 })
 assert.equal(node.data[3].message[0].type, "video")
+assert.equal(node.data[4].message[1].type, "image")
+assert.equal(node.data[4].message[1].animated, true)
 
 console.log("forward message tests passed")
