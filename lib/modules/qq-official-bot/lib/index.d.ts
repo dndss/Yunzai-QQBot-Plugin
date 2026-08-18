@@ -1444,7 +1444,7 @@ export function trimQuote(str: string): string;
  * 消息构建器 - 专门负责构建消息内容
  */
 export interface MessagePayload {
-    msg_seq: number;
+    msg_seq?: number;
     content: string;
     msg_type?: number;
     msg_id?: string;
@@ -2279,7 +2279,10 @@ export interface SendResult {
 export class MessageService {
     private request;
     private appid;
+    private readonly replySequences;
     constructor(request: AxiosInstance, appid: string);
+    private nextReplySequence;
+    private releaseReplySequence;
     /**
      * 获取子频道消息
      */
