@@ -2297,6 +2297,8 @@ export class MessageService {
     constructor(request: AxiosInstance, appid: string);
     private nextReplySequence;
     private releaseReplySequence;
+    private advanceReplySequence;
+    private getOpenApiErrorCode;
     /**
      * 获取子频道消息
      */
