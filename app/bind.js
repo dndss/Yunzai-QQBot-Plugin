@@ -12,7 +12,6 @@ const JPEG_SOS = 0xDA
 const JPEG_EOI = 0xD9
 const JPEG_APP11 = 0xEB
 const QQ_AVATAR_APP11_TOTAL_LENGTH = 596
-const QQ_AVATAR_SIZE_DIFFERENCE = 591
 const QQ_AVATAR_APP11_MAGIC = "fae93b12"
 
 async function fetchAvatar (url) {
@@ -77,10 +76,7 @@ function parseJpegHeader (buffer) {
   return false
 }
 
-function hasQqAvatarApp11 (buffer) {
-  const jpeg = parseJpegHeader(buffer)
-  if (!jpeg) return false
-
+function getQqAvatarApp11 (buffer, jpeg) {
   const sosIndex = jpeg.segments.findIndex(segment => segment.marker === JPEG_SOS)
   if (sosIndex < 1) return false
 
@@ -88,10 +84,39 @@ function hasQqAvatarApp11 (buffer) {
   if (app11.marker !== JPEG_APP11 || app11.totalLength !== QQ_AVATAR_APP11_TOTAL_LENGTH) return false
 
   const payload = buffer.subarray(app11.payloadStart, app11.payloadEnd)
-  return payload.length === 592 &&
+  if (!(payload.length === 592 &&
     payload.readUInt32BE(0) === 1 &&
     payload.subarray(4, 8).toString("hex") === QQ_AVATAR_APP11_MAGIC &&
-    payload.readUInt32BE(20) === 568
+    payload.readUInt32BE(20) === 568)) return false
+
+  return app11
+}
+
+function getJpegHeader (buffer, jpeg, ignoredSegment) {
+  const sos = jpeg.segments.find(segment => segment.marker === JPEG_SOS)
+  if (!sos) return false
+
+  const headerEnd = sos.offset + sos.totalLength
+  if (!ignoredSegment) return buffer.subarray(0, headerEnd)
+  if (ignoredSegment.offset >= sos.offset) return false
+
+  return Buffer.concat([
+    buffer.subarray(0, ignoredSegment.offset),
+    buffer.subarray(ignoredSegment.offset + ignoredSegment.totalLength, headerEnd),
+  ])
+}
+
+function isCompatibleQqJpeg (openidBuffer, uinBuffer) {
+  const openidJpeg = parseJpegHeader(openidBuffer)
+  const uinJpeg = parseJpegHeader(uinBuffer)
+  if (!openidJpeg || !uinJpeg) return false
+
+  const app11 = getQqAvatarApp11(uinBuffer, uinJpeg)
+  if (!app11) return false
+
+  const openidHeader = getJpegHeader(openidBuffer, openidJpeg)
+  const uinHeader = getJpegHeader(uinBuffer, uinJpeg, app11)
+  return !!openidHeader && !!uinHeader && openidHeader.equals(uinHeader)
 }
 
 async function verifyAvatar (appid, openid, uin) {
@@ -104,13 +129,12 @@ async function verifyAvatar (appid, openid, uin) {
   if (!openidAvatar || !uinAvatar) return false
   if (openidAvatar.md5 === uinAvatar.md5) return true
 
-  const isCompatibleJpeg = uinAvatar.buffer.length - openidAvatar.buffer.length === QQ_AVATAR_SIZE_DIFFERENCE &&
-    !!parseJpegHeader(openidAvatar.buffer) &&
-    hasQqAvatarApp11(uinAvatar.buffer)
+  const isCompatibleJpeg = isCompatibleQqJpeg(openidAvatar.buffer, uinAvatar.buffer)
   Bot.makeLog?.("debug", [
     "QQBot JPEG头像兼容校验",
     `openidSize=${openidAvatar.buffer.length}`,
     `uinSize=${uinAvatar.buffer.length}`,
+    `sizeDelta=${uinAvatar.buffer.length - openidAvatar.buffer.length}`,
     `result=${isCompatibleJpeg}`,
   ])
   return isCompatibleJpeg
@@ -156,7 +180,10 @@ async function handleMasterBind (data, appid, target, uin, force) {
     await data.reply("正在校验被@用户...")
     const ok = await verifyAvatar(appid, target.openid, uin)
     if (!ok) {
-      await data.reply("代绑定失败：被@用户与真实QQ不符合。")
+      await data.reply([
+        "代绑定失败：被@用户与真实QQ不符合。",
+        "可使用 #QQ强制绑定 或 #QQ强制绑定openid 进行强制绑定。",
+      ].join("\n"))
       return
     }
   }
