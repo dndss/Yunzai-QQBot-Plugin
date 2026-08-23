@@ -10,11 +10,14 @@ global.redis = {
 }
 
 const calls = []
+let emitted
 const adapter = {
   sendGroupMsg: async (data, message) => calls.push(["reply", data, message]),
   recallGroupMsg: async (data, messageId) => calls.push(["recall", data, messageId]),
   sendFriendMsg: async (data, message) => calls.push(["friend-reply", data, message]),
   recallFriendMsg: async (data, messageId) => calls.push(["friend-recall", data, messageId]),
+  getGroupInfo: async data => ({ group_id: data.group_id, group_name: "测试群" }),
+  setGroupMap: async () => {},
 }
 const bot = {
   uin: "10000",
@@ -27,14 +30,24 @@ const bot = {
   }),
   pickFriend: userId => ({ user_id: userId }),
 }
-global.Bot = { 10000: bot }
+global.Bot = {
+  10000: bot,
+  em: (_name, data) => { emitted = data },
+  makeLog: () => {},
+}
 
 const {
   MESSAGE_RECORD_VERSION,
   adaptMessageRecord,
   sanitizeRawMessage,
 } = await import("../lib/messageRecord.js")
-const { getRecordByMsgId, getRecordByMsgIdx, saveMsgRecord } = await import("../lib/msgIdxCache.js")
+const {
+  getRecordByMsgId,
+  getRecordByMsgIdx,
+  parseElementMessage,
+  saveMsgRecord,
+} = await import("../lib/msgIdxCache.js")
+const { makeMessage } = await import("../lib/messageBuilder.js")
 
 const raw = {
   posttype: "message",
@@ -147,6 +160,64 @@ await saveMsgRecord(bot, {
 const quoted = await getRecordByMsgId(bot, "message-reply")
 assert.equal(quoted.source.seq, "message-1")
 assert.equal((await quoted.getReply()).raw_message, "hello")
+
+const attachmentElement = {
+  msg_idx: "missing-image-idx",
+  content: "",
+  attachments: [{
+    content: "",
+    content_type: "image/jpeg",
+    filename: "test.jpg",
+    width: 4037,
+    height: 2000,
+    size: 691538,
+    url: "https://multimedia.nt.qq.com.cn/download?test",
+  }],
+}
+assert.deepEqual(parseElementMessage(attachmentElement), [{
+  type: "image",
+  url: "https://multimedia.nt.qq.com.cn/download?test",
+  file: "https://multimedia.nt.qq.com.cn/download?test",
+  name: "test.jpg",
+  width: 4037,
+  height: 2000,
+  size: 691538,
+}])
+
+await saveMsgRecord(bot, {
+  version: MESSAGE_RECORD_VERSION,
+  direction: "incoming",
+  scene: "group",
+  self_id: "10000",
+  msg_idx: "idx-image-reply",
+  message_id: "message-image-reply",
+  raw: sanitizeRawMessage({
+    ...raw,
+    messageid: "message-image-reply",
+    messagescene: { ext: ["msgidx=idx-image-reply", "refmsgidx=missing-image-idx"] },
+    msgelements: [attachmentElement],
+  }),
+})
+const imageQuoted = await getRecordByMsgId(bot, "message-image-reply")
+assert.equal(imageQuoted.source.message, "[图片]")
+assert.deepEqual((await imageQuoted.getReply()).message, parseElementMessage(attachmentElement))
+
+await makeMessage(adapter, "10000", {
+  post_type: "message",
+  message_type: "group",
+  sub_type: "normal",
+  message_id: "live-image-reply",
+  raw_message: "图里有什么",
+  message: [{ type: "text", data: { text: "图里有什么" } }],
+  sender: { user_id: "USER_OPENID", permissions: ["normal"] },
+  author: { username: "测试用户", member_role: "member" },
+  group_id: "GROUP_OPENID",
+  timestamp: 789,
+  message_scene: { ext: ["msg_idx=live-image-reply-idx", "ref_msg_idx=missing-live-image-idx"] },
+  msg_elements: [{ ...attachmentElement, msg_idx: "missing-live-image-idx" }],
+})
+assert.equal(emitted.source.message, "[图片]")
+assert.deepEqual((await emitted.getReply()).message, parseElementMessage(attachmentElement))
 
 const outgoing = await adaptMessageRecord(adapter, bot, {
   version: MESSAGE_RECORD_VERSION,
