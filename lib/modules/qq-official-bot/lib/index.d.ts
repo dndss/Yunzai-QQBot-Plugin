@@ -1258,23 +1258,31 @@ export interface MessageElemMap {
         url?: string;
         /** 仅接收有效 */
         name?: string;
+        /** 附件说明，接收消息时有效 */
+        description?: string;
     };
     video: {
         file: string;
         url?: string;
         /** 仅接收有效 */
         name?: string;
+        /** 附件说明，接收消息时有效 */
+        description?: string;
     };
     audio: {
         file: string;
         url?: string;
         /** 仅接收有效 */
         name?: string;
+        /** 附件说明，接收消息时有效 */
+        description?: string;
     };
     file: {
         file: string | Buffer;
         url?: string;
         name?: string;
+        /** 附件说明，接收消息时有效 */
+        description?: string;
     };
     /** 官方网关 message_type=102 展开的合并转发消息，仅接收有效 */
     forward: ForwardMessageData;
