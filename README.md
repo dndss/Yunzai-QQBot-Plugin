@@ -322,9 +322,13 @@ data/bots/<botId>/messages/users/<userOpenId>/2026-08-26.jsonl
 ```
 
 目录名直接使用 QQ 开放平台提供的原始 `groupOpenId` 和 `userOpenId`，不会写入
-映射后的群号或 QQ 号。每行只保存消息时间、收发方向、消息 ID、消息序号、发送者、
-标准消息段和可读文本，不保存完整官方事件对象。引用回复、`getMsg()` 和
-`getChatHistory()` 会直接查询这些文件，不再使用 7 天 Redis／内存消息缓存。
+映射后的群号或 QQ 号。每行既保存便于稳定查询的标准消息字段，也保存完整原始数据：
+收到的消息使用 `raw` 保存官方事件，发出的消息使用 `raw_request` 和
+`raw_response` 保存实际请求与官方响应。为避免鉴权信息明文落盘，所有形式的
+`auth_token` 字段都会被移除，其余原始字段保持不变。
+
+引用回复、`getMsg()` 和 `getChatHistory()` 会直接查询这些文件，不再使用 7 天
+Redis／内存消息缓存。
 
 消息撤回后会追加一条 `type: "recall"` 记录。原消息行仍然保留，但后续消息查询不会
 再返回该消息。

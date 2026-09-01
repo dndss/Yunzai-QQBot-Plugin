@@ -69,10 +69,15 @@ const raw = {
   sender: { userid: "USER_OPENID", permissions: ["normal"] },
   message: [{ type: "text", data: { text: "hello" } }],
   rawmessage: "hello",
+  auth_token: "top-secret",
+  nested: { authToken: "nested-secret", keep: "kept" },
   messagescene: { ext: ["msgidx=idx-1", "authtoken=secret", "auth_token=secret-2"] },
 }
 const sanitized = sanitizeRawMessage(raw)
 assert.deepEqual(sanitized.messagescene.ext, ["msgidx=idx-1"])
+assert.equal("auth_token" in sanitized, false)
+assert.equal("authToken" in sanitized.nested, false)
+assert.equal(sanitized.nested.keep, "kept")
 
 const incoming = await adaptMessageRecord(adapter, bot, {
   version: MESSAGE_RECORD_VERSION,
@@ -140,6 +145,7 @@ await saveMsgRecord(bot, {
     { type: "text", text: "hello" },
   ],
   raw_message: "hello",
+  raw,
 })
 const groupScope = { groupOpenId: "GROUP_OPENID" }
 const restored = await getRecordByMsgId(bot, "message-1", groupScope)
@@ -164,7 +170,11 @@ const groupFile = path.join(
 const firstStoredLine = JSON.parse((await fs.readFile(groupFile, "utf8")).trim())
 assert.equal(firstStoredLine.group_openid, "GROUP_OPENID")
 assert.equal(firstStoredLine.sender.user_openid, "USER_OPENID")
-assert.equal("raw" in firstStoredLine, false)
+assert.equal(firstStoredLine.raw.messageid, "message-1")
+assert.equal(firstStoredLine.raw.nested.keep, "kept")
+assert.equal("auth_token" in firstStoredLine.raw, false)
+assert.equal("authToken" in firstStoredLine.raw.nested, false)
+assert.deepEqual(firstStoredLine.raw.messagescene.ext, ["msgidx=idx-1"])
 assert.equal("user_id" in firstStoredLine.sender, false)
 assert.equal(firstStoredLine.message[0].user_openid, "AT_USER_OPENID")
 assert.equal("qq" in firstStoredLine.message[0], false)
@@ -189,6 +199,35 @@ const privateFile = path.join(
   "1970-01-01.jsonl",
 )
 assert.equal(JSON.parse((await fs.readFile(privateFile, "utf8")).trim()).user_openid, "FRIEND_OPENID")
+
+await saveMsgRecord(bot, {
+  direction: "outgoing",
+  scene: "group",
+  self_id: "10000",
+  time: 125,
+  msg_idx: "outgoing-idx",
+  message_id: "outgoing-stored",
+  group_openid: "GROUP_OPENID",
+  sender: { user_openid: "BOT_OPENID", nickname: "QQBot", bot: true },
+  message: [{ type: "text", text: "sent" }],
+  raw_message: "sent",
+  raw_request: {
+    message_reference: { message_id: "message-1" },
+    content: "sent",
+    auth_token: "request-secret",
+  },
+  raw_response: {
+    id: "outgoing-stored",
+    ext_info: { ref_idx: "outgoing-idx" },
+    authToken: "response-secret",
+  },
+})
+const storedOutgoing = await getRecordByMsgId(bot, "outgoing-stored", groupScope)
+assert.equal(storedOutgoing.raw_request.content, "sent")
+assert.equal(storedOutgoing.raw_response.id, "outgoing-stored")
+assert.equal("auth_token" in storedOutgoing.raw_request, false)
+assert.equal("authToken" in storedOutgoing.raw_response, false)
+assert.equal(storedOutgoing.raw.id, "outgoing-stored")
 
 await saveMsgRecord(bot, {
   direction: "incoming",
@@ -241,11 +280,27 @@ await makeMessage(adapter, "10000", {
   author: { username: "测试用户", member_role: "member" },
   group_id: "GROUP_OPENID",
   timestamp: 789,
-  message_scene: { ext: ["msg_idx=live-image-reply-idx", "ref_msg_idx=missing-live-image-idx"] },
+  message_scene: {
+    ext: [
+      "msg_idx=live-image-reply-idx",
+      "ref_msg_idx=missing-live-image-idx",
+      "auth_token=live-secret",
+    ],
+  },
   msg_elements: [{ ...attachmentElement, msg_idx: "missing-live-image-idx" }],
 })
 assert.equal(emitted.source.message, "[图片]")
 assert.deepEqual((await emitted.getReply()).message, parseElementMessage(attachmentElement))
+const liveStoredRecord = (await fs.readFile(groupFile, "utf8"))
+  .trim()
+  .split(/\r?\n/)
+  .map(line => JSON.parse(line))
+  .find(record => record.message_id === "live-image-reply")
+assert.equal(liveStoredRecord.raw.msg_elements[0].attachments[0].filename, "test.jpg")
+assert.deepEqual(liveStoredRecord.raw.message_scene.ext, [
+  "msg_idx=live-image-reply-idx",
+  "ref_msg_idx=missing-live-image-idx",
+])
 
 assert.equal(await markMsgRecordRecalled(bot, "message-1", groupScope), true)
 assert.equal(await getRecordByMsgId(bot, "message-1", groupScope), null)
