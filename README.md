@@ -18,6 +18,7 @@
 - 接入 QQ 官方 Bot 私聊、群聊、频道消息事件
 - 支持 Yunzai 常用消息段到 QQBot 消息的转换
 - 支持文本、图片、Markdown、按钮等消息发送
+- 支持 C2C 私聊文本与 Markdown 流式发送
 - 支持 `openid` 与真实 QQ 号的绑定映射
 - 支持 QQBot 群 `openid` 与真实群号的绑定映射
 - 支持从群消息事件中提取成员名称与身份信息
@@ -258,7 +259,7 @@ QQBot-Plugin
 按钮、Markdown、Markdown + 按钮混合发送等示例请查看：
 
 ```text
-plugins/QQBot-Plugin/wiki.md
+wiki.md
 ```
 
 常见写法示例：
@@ -269,6 +270,47 @@ await e.reply(segment.button([
   { text: "取消", callback: "#取消" }
 ]))
 ```
+
+### 私聊流式消息
+
+私聊事件提供 `e.streamReply(payload, options?)`。插件会自动使用当前消息作为被动
+回复凭据，但调用方仍需按 QQ 官方协议维护 `index` 和 `stream_msg_id`：
+
+```js
+const first = await e.streamReply({
+  input_mode: "append",
+  input_state: 1,
+  index: 0,
+  content_type: "markdown",
+  content_raw: "正在生成回答",
+  msg_seq: 1,
+})
+
+await e.streamReply({
+  input_mode: "append",
+  input_state: 10,
+  index: 1,
+  content_type: "markdown",
+  content_raw: "，回答生成完毕。",
+  stream_msg_id: first.id,
+  msg_seq: 1,
+})
+```
+
+也可以通过好友对象发送单个原始分片：
+
+```js
+await Bot[e.self_id].pickFriend(e.user_id).sendStreamMsg({
+  input_state: 1,
+  index: 0,
+  content_type: "text",
+  content_raw: "处理中",
+  msg_id: e.message_id,
+})
+```
+
+`sendStreamMsg()` 不会自动补充 `msg_id/event_id`；适合需要完全控制官方请求体的
+场景。流式接口仅适用于 QQ C2C 私聊，不适用于频道私信。
 
 ## 已知限制
 

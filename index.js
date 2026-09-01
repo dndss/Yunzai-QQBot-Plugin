@@ -99,6 +99,8 @@ const adapter = new (class QQBotAdapter {
     return {
       ...i,
       sendMsg: msg => this.sendFriendMsg(i, msg),
+      /** 发送一个 C2C 流式消息分片；调用方负责维护 index 和 stream_msg_id */
+      sendStreamMsg: (payload, options) => this.sendFriendStreamMsg(i, payload, options),
       getMsg: message_id => getRecordByMsgId(id, message_id),
       recallMsg: message_id => this.recallFriendMsg(i, message_id),
       getAvatarUrl: (size = 100) => {

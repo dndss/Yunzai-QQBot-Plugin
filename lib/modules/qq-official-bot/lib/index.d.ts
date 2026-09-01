@@ -156,6 +156,47 @@ export namespace GuildMember {
     }
 }
 export type Dict<T = any, K extends string | symbol = string> = Record<K, T>;
+/** 流式私聊消息的输入模式。 */
+export type PrivateStreamInputMode = 'append' | 'replace';
+/** 流式私聊消息的内容格式。 */
+export type PrivateStreamContentType = 'text' | 'markdown';
+/** QQ OpenAPI 流式发送单聊消息请求体。 */
+export interface PrivateStreamMessagePayload {
+    /** append（默认）追加增量内容；replace 传入当前完整正文。 */
+    input_mode?: PrivateStreamInputMode;
+    /** 1=生成中，10=生成结束。 */
+    input_state?: 1 | 10;
+    /** 分片序号，从 0 递增。 */
+    index?: number;
+    content_type?: PrivateStreamContentType;
+    content_raw?: string;
+    /** 被动回复事件 ID，与 msg_id 二选一。 */
+    event_id?: string;
+    /** 被动回复消息 ID，与 event_id 二选一。 */
+    msg_id?: string;
+    /** 首片响应返回的消息 ID，后续分片必须携带。 */
+    stream_msg_id?: string;
+    /** 消息序号，用于去重。 */
+    msg_seq?: number;
+    /** 是否为召回消息；为 true 时不校验被动回复凭据有效期。 */
+    is_wakeup?: boolean;
+}
+/** QQ OpenAPI 流式发送单聊消息响应体。 */
+export interface PrivateStreamMessageResult {
+    /** 首片响应时作为后续请求的 stream_msg_id。 */
+    id: string;
+    /** RFC3339 格式的消息发送时间。 */
+    timestamp: string;
+    ext_info?: {
+        ref_idx?: string;
+        [key: string]: unknown;
+    };
+    remain_msg_len?: number;
+    [key: string]: unknown;
+}
+export interface PrivateStreamSendOptions {
+    timeout?: number;
+}
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal" | "mark" | "off";
 export interface DataPacket {
     op: number;
@@ -1836,6 +1877,11 @@ export class PrivateMessageEvent extends Message implements MessageEvent {
     constructor(bot: Bot, sub_type: Message.SubType, payload: Partial<Message>);
     recall(): Promise<boolean>;
     reply(message: Sendable, quote?: boolean): Promise<SendResult>;
+    /**
+     * 流式回复 C2C 私聊消息。调用方负责维护 index 和 stream_msg_id。
+     * 未提供 msg_id/event_id 时，默认使用当前消息 ID 作为 msg_id。
+     */
+    streamReply(payload: PrivateStreamMessagePayload, options?: PrivateStreamSendOptions): Promise<PrivateStreamMessageResult>;
 }
 export class MessageAuditEvent {
     bot: Bot;
@@ -2339,6 +2385,11 @@ export class MessageService {
      * 发送私聊消息
      */
     sendPrivateMessage(userId: string, message: Sendable, source?: Quotable, options?: SendOptions): Promise<SendResult>;
+    /**
+     * 流式发送私聊消息。
+     * 调用方负责维护 index，并将首片响应 id 作为后续分片的 stream_msg_id。
+     */
+    sendPrivateStreamMessage(userId: string, payload: PrivateStreamMessagePayload, options?: PrivateStreamSendOptions): Promise<PrivateStreamMessageResult>;
     /**
      * 撤回私聊消息
      */
@@ -2921,6 +2972,13 @@ export class Bot<T extends ReceiverMode = ReceiverMode, M extends ApplicationPla
      * @param source
      */
     sendPrivateMessage(user_id: string, message: Sendable, source?: Quotable, options?: SendOptions): Promise<import("@/services/message").SendResult>;
+    /**
+     * 流式发送私聊消息
+     * @param user_id 用户 OpenID
+     * @param payload 官方流式消息请求体
+     * @param options 请求选项
+     */
+    sendPrivateStreamMessage(user_id: string, payload: PrivateStreamMessagePayload, options?: PrivateStreamSendOptions): Promise<PrivateStreamMessageResult>;
     /**
      * 撤回私聊消息
      * @param user_id
