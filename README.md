@@ -312,6 +312,23 @@ await Bot[e.self_id].pickFriend(e.user_id).sendStreamMsg({
 `sendStreamMsg()` 不会自动补充 `msg_id/event_id`；适合需要完全控制官方请求体的
 场景。流式接口仅适用于 QQ C2C 私聊，不适用于频道私信。
 
+## 聊天记录持久化
+
+插件会将 QQ 群聊与 C2C 私聊的收发消息按天追加为 JSONL 文件：
+
+```text
+data/bots/<botId>/messages/groups/<groupOpenId>/2026-08-26.jsonl
+data/bots/<botId>/messages/users/<userOpenId>/2026-08-26.jsonl
+```
+
+目录名直接使用 QQ 开放平台提供的原始 `groupOpenId` 和 `userOpenId`，不会写入
+映射后的群号或 QQ 号。每行只保存消息时间、收发方向、消息 ID、消息序号、发送者、
+标准消息段和可读文本，不保存完整官方事件对象。引用回复、`getMsg()` 和
+`getChatHistory()` 会直接查询这些文件，不再使用 7 天 Redis／内存消息缓存。
+
+消息撤回后会追加一条 `type: "recall"` 记录。原消息行仍然保留，但后续消息查询不会
+再返回该消息。
+
 ## 已知限制
 
 

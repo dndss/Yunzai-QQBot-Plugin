@@ -1,4 +1,7 @@
 import assert from "node:assert/strict"
+import fs from "node:fs/promises"
+import os from "node:os"
+import path from "node:path"
 
 const redisStore = new Map()
 global.redis = {
@@ -44,10 +47,15 @@ const {
 const {
   getRecordByMsgId,
   getRecordByMsgIdx,
+  markMsgRecordRecalled,
   parseElementMessage,
   saveMsgRecord,
-} = await import("../lib/msgIdxCache.js")
+  setMessageStoreRoot,
+} = await import("../lib/messageStore.js")
 const { makeMessage } = await import("../lib/messageBuilder.js")
+
+const messageStoreRoot = await fs.mkdtemp(path.join(os.tmpdir(), "qqbot-message-store-"))
+setMessageStoreRoot(messageStoreRoot)
 
 const raw = {
   posttype: "message",
@@ -119,45 +127,83 @@ assert.equal(calls[3][0], "friend-recall")
 assert.equal(calls[3][1].bot, bot)
 
 await saveMsgRecord(bot, {
-  version: MESSAGE_RECORD_VERSION,
   direction: "incoming",
   scene: "group",
   self_id: "10000",
+  time: 123,
   msg_idx: "idx-1",
   message_id: "message-1",
-  raw: sanitized,
+  group_openid: "GROUP_OPENID",
+  sender: { user_openid: "USER_OPENID", nickname: "测试用户", role: "admin" },
+  message: [
+    { type: "at", qq: "123456", _raw_user_id: "AT_USER_OPENID", username: "被提及用户" },
+    { type: "text", text: "hello" },
+  ],
+  raw_message: "hello",
 })
-const restored = await getRecordByMsgId(bot, "message-1")
+const groupScope = { groupOpenId: "GROUP_OPENID" }
+const restored = await getRecordByMsgId(bot, "message-1", groupScope)
 assert.equal(restored.user_id, "USER_OPENID")
 assert.equal(restored.sender.nickname, "测试用户")
 assert.equal(typeof restored.reply, "function")
+assert.equal(restored.message[0].qq, "AT_USER_OPENID")
+assert.equal(restored.message[0]._raw_user_id, "AT_USER_OPENID")
 
-const messageIdKey = "QQBot:msgId:appid:message-1"
-redisStore.delete(messageIdKey)
-assert.equal(redisStore.has(messageIdKey), false)
-assert.equal((await getRecordByMsgIdx(bot, "idx-1")).message_id, "message-1")
-assert.equal(redisStore.has(messageIdKey), true)
-assert.equal((await getRecordByMsgId(bot, "message-1")).user_id, "USER_OPENID")
-const msgIdxKey = "QQBot:msgIdx:appid:idx-1"
-redisStore.delete(msgIdxKey)
-assert.equal(redisStore.has(msgIdxKey), false)
-assert.equal((await getRecordByMsgId(bot, "message-1")).msg_idx, "idx-1")
-assert.equal(redisStore.has(msgIdxKey), true)
+assert.equal((await getRecordByMsgIdx(bot, "idx-1", groupScope)).message_id, "message-1")
+assert.equal((await getRecordByMsgId(bot, "message-1", groupScope)).msg_idx, "idx-1")
+assert.equal([...redisStore.keys()].some(key => key.startsWith("QQBot:msg")), false)
+
+const groupFile = path.join(
+  messageStoreRoot,
+  "10000",
+  "messages",
+  "groups",
+  "GROUP_OPENID",
+  "1970-01-01.jsonl",
+)
+const firstStoredLine = JSON.parse((await fs.readFile(groupFile, "utf8")).trim())
+assert.equal(firstStoredLine.group_openid, "GROUP_OPENID")
+assert.equal(firstStoredLine.sender.user_openid, "USER_OPENID")
+assert.equal("raw" in firstStoredLine, false)
+assert.equal("user_id" in firstStoredLine.sender, false)
+assert.equal(firstStoredLine.message[0].user_openid, "AT_USER_OPENID")
+assert.equal("qq" in firstStoredLine.message[0], false)
 
 await saveMsgRecord(bot, {
-  version: MESSAGE_RECORD_VERSION,
+  direction: "incoming",
+  scene: "private",
+  self_id: "10000",
+  time: 123,
+  message_id: "private-stored",
+  user_openid: "FRIEND_OPENID",
+  sender: { user_openid: "FRIEND_OPENID", nickname: "好友" },
+  message: [{ type: "text", text: "private" }],
+  raw_message: "private",
+})
+const privateFile = path.join(
+  messageStoreRoot,
+  "10000",
+  "messages",
+  "users",
+  "FRIEND_OPENID",
+  "1970-01-01.jsonl",
+)
+assert.equal(JSON.parse((await fs.readFile(privateFile, "utf8")).trim()).user_openid, "FRIEND_OPENID")
+
+await saveMsgRecord(bot, {
   direction: "incoming",
   scene: "group",
   self_id: "10000",
+  time: 124,
   msg_idx: "idx-2",
+  ref_msg_idx: "idx-1",
   message_id: "message-reply",
-  raw: sanitizeRawMessage({
-    ...raw,
-    messageid: "message-reply",
-    messagescene: { ext: ["msgidx=idx-2", "refmsgidx=idx-1"] },
-  }),
+  group_openid: "GROUP_OPENID",
+  sender: { user_openid: "USER_OPENID", nickname: "测试用户" },
+  message: [{ type: "text", text: "reply" }],
+  raw_message: "reply",
 })
-const quoted = await getRecordByMsgId(bot, "message-reply")
+const quoted = await getRecordByMsgId(bot, "message-reply", groupScope)
 assert.equal(quoted.source.seq, "message-1")
 assert.equal((await quoted.getReply()).raw_message, "hello")
 
@@ -184,24 +230,6 @@ assert.deepEqual(parseElementMessage(attachmentElement), [{
   size: 691538,
 }])
 
-await saveMsgRecord(bot, {
-  version: MESSAGE_RECORD_VERSION,
-  direction: "incoming",
-  scene: "group",
-  self_id: "10000",
-  msg_idx: "idx-image-reply",
-  message_id: "message-image-reply",
-  raw: sanitizeRawMessage({
-    ...raw,
-    messageid: "message-image-reply",
-    messagescene: { ext: ["msgidx=idx-image-reply", "refmsgidx=missing-image-idx"] },
-    msgelements: [attachmentElement],
-  }),
-})
-const imageQuoted = await getRecordByMsgId(bot, "message-image-reply")
-assert.equal(imageQuoted.source.message, "[图片]")
-assert.deepEqual((await imageQuoted.getReply()).message, parseElementMessage(attachmentElement))
-
 await makeMessage(adapter, "10000", {
   post_type: "message",
   message_type: "group",
@@ -218,6 +246,19 @@ await makeMessage(adapter, "10000", {
 })
 assert.equal(emitted.source.message, "[图片]")
 assert.deepEqual((await emitted.getReply()).message, parseElementMessage(attachmentElement))
+
+assert.equal(await markMsgRecordRecalled(bot, "message-1", groupScope), true)
+assert.equal(await getRecordByMsgId(bot, "message-1", groupScope), null)
+const storedAfterRecall = (await Promise.all(
+  (await fs.readdir(path.dirname(groupFile)))
+    .filter(file => file.endsWith(".jsonl"))
+    .map(file => fs.readFile(path.join(path.dirname(groupFile), file), "utf8")),
+))
+  .flatMap(content => content.trim().split(/\r?\n/))
+  .filter(Boolean)
+  .map(line => JSON.parse(line))
+assert.equal(storedAfterRecall.some(record => record.type === "message" && record.message_id === "message-1"), true)
+assert.equal(storedAfterRecall.some(record => record.type === "recall" && record.message_id === "message-1"), true)
 
 const outgoing = await adaptMessageRecord(adapter, bot, {
   version: MESSAGE_RECORD_VERSION,

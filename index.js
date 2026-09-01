@@ -9,7 +9,7 @@ const {
   translateGroupToOpenid,
 } = await import("./lib/groupMap.js")
 const { installMessageSender } = await import("./lib/messageSender.js")
-const { getRecordByMsgId } = await import("./lib/msgIdxCache.js")
+const { getRecordByMsgId } = await import("./lib/messageStore.js")
 const adapter = new (class QQBotAdapter {
   constructor() {
     this.id = "QQBot"
@@ -65,6 +65,9 @@ const adapter = new (class QQBotAdapter {
     await data.bot.fl.set(data.user_id, {
       ...data.bot.fl.get(data.user_id),
       ...data.sender,
+      ...(data._raw_user_id || data.sender?._raw_user_id
+        ? { _raw_user_id: data._raw_user_id || data.sender._raw_user_id }
+        : {}),
       message_id: data.message_id,
     })
   }
@@ -74,6 +77,7 @@ const adapter = new (class QQBotAdapter {
     await data.bot.gl.set(data.group_id, {
       ...data.bot.gl.get(data.group_id),
       group_id: data.group_id,
+      ...(data._raw_group_id ? { _raw_group_id: data._raw_group_id } : {}),
       message_id: data.message_id,
     })
     let gml = data.bot.gml.get(data.group_id)
@@ -101,7 +105,11 @@ const adapter = new (class QQBotAdapter {
       sendMsg: msg => this.sendFriendMsg(i, msg),
       /** 发送一个 C2C 流式消息分片；调用方负责维护 index 和 stream_msg_id */
       sendStreamMsg: (payload, options) => this.sendFriendStreamMsg(i, payload, options),
-      getMsg: message_id => getRecordByMsgId(id, message_id),
+      getMsg: message_id => getRecordByMsgId(
+        id,
+        message_id,
+        i._raw_user_id ? { userOpenId: i._raw_user_id } : undefined,
+      ),
       recallMsg: message_id => this.recallFriendMsg(i, message_id),
       getAvatarUrl: (size = 100) => {
         const userId = i._raw_user_id || i.user_id
@@ -148,7 +156,11 @@ const adapter = new (class QQBotAdapter {
       is_owner: memberRole === "owner",
       is_admin: memberRole === "admin" || memberRole === "owner",
       sendMsg: msg => this.sendGroupMsg(i, msg),
-      getMsg: message_id => getRecordByMsgId(id, message_id),
+      getMsg: message_id => getRecordByMsgId(
+        id,
+        message_id,
+        i._raw_group_id ? { groupOpenId: i._raw_group_id } : undefined,
+      ),
       recallMsg: message_id => this.recallGroupMsg(i, message_id),
       getInfo: (no_cache, add) => this.getGroupInfo(i, no_cache, add),
       pickMember: user_id => this.pickMember(id, group_id, user_id),
@@ -177,9 +189,13 @@ const adapter = new (class QQBotAdapter {
           mute_expire_at: new Date(Date.now() + duration * 1000).toISOString(),
         }])
       },
-      /** QQBot 无拉取历史消息接口，以 message_id 作为 seq 查本地消息缓存 */
+      /** QQBot 无拉取历史消息接口，以 message_id 作为 seq 查本地 JSONL 记录。 */
       getChatHistory: async (seq, cnt = 1) => {
-        const record = await getRecordByMsgId(id, seq)
+        const record = await getRecordByMsgId(
+          id,
+          seq,
+          i._raw_group_id ? { groupOpenId: i._raw_group_id } : undefined,
+        )
         return record ? [record] : []
       },
     }

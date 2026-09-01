@@ -1,4 +1,7 @@
 import assert from "node:assert/strict"
+import fs from "node:fs/promises"
+import os from "node:os"
+import path from "node:path"
 import sdk from "qq-official-bot"
 
 const content = `[群聊的聊天记录]
@@ -119,6 +122,8 @@ global.Bot = {
   makeLog: () => {},
 }
 
+const { setMessageStoreRoot } = await import("../lib/messageStore.js")
+setMessageStoreRoot(await fs.mkdtemp(path.join(os.tmpdir(), "qqbot-forward-message-")))
 const { makeMessage } = await import("../lib/messageBuilder.js")
 await makeMessage(adapter, "10000", event)
 
