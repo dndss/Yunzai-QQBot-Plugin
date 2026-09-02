@@ -47,6 +47,7 @@ const {
 const {
   getRecordByMsgId,
   getRecordByMsgIdx,
+  isReferenceMessageIndex,
   markMsgRecordRecalled,
   parseElementMessage,
   saveMsgRecord,
@@ -157,6 +158,10 @@ assert.equal(restored.message[0]._raw_user_id, "AT_USER_OPENID")
 
 assert.equal((await getRecordByMsgIdx(bot, "idx-1", groupScope)).message_id, "message-1")
 assert.equal((await getRecordByMsgId(bot, "message-1", groupScope)).msg_idx, "idx-1")
+assert.equal(isReferenceMessageIndex("REFIDX_reference"), true)
+assert.equal(isReferenceMessageIndex("TMP_reference"), true)
+assert.equal(isReferenceMessageIndex("ROBOT1.0_message"), false)
+assert.equal(await getRecordByMsgId(bot, "REFIDX_reference", groupScope), null)
 assert.equal([...redisStore.keys()].some(key => key.startsWith("QQBot:msg")), false)
 
 const groupFile = path.join(
@@ -290,7 +295,9 @@ await makeMessage(adapter, "10000", {
   msg_elements: [{ ...attachmentElement, msg_idx: "missing-live-image-idx" }],
 })
 assert.equal(emitted.source.message, "[图片]")
+assert.equal(Object.hasOwn(emitted.source, "seq"), false)
 assert.deepEqual((await emitted.getReply()).message, parseElementMessage(attachmentElement))
+assert.equal((await emitted.getReply()).msg_idx, "missing-live-image-idx")
 const liveStoredRecord = (await fs.readFile(groupFile, "utf8"))
   .trim()
   .split(/\r?\n/)
@@ -301,6 +308,60 @@ assert.deepEqual(liveStoredRecord.raw.message_scene.ext, [
   "msg_idx=live-image-reply-idx",
   "ref_msg_idx=missing-live-image-idx",
 ])
+
+await makeMessage(adapter, "10000", {
+  id: "ROBOT1.0_official-message-id",
+  message_id: "REFIDX_not-a-message-id",
+  post_type: "message",
+  message_type: "group",
+  sub_type: "normal",
+  raw_message: "官方 ID 优先",
+  message: [{ type: "text", data: { text: "官方 ID 优先" } }],
+  sender: { user_id: "USER_OPENID", permissions: ["normal"] },
+  author: { username: "测试用户", member_role: "member" },
+  group_id: "GROUP_OPENID",
+  timestamp: 790,
+  message_scene: { ext: ["msg_idx=official-id-idx"] },
+})
+assert.equal(emitted.message_id, "ROBOT1.0_official-message-id")
+assert.equal(
+  (await getRecordByMsgId(bot, "ROBOT1.0_official-message-id", groupScope)).raw_message,
+  "官方 ID 优先",
+)
+assert.equal(await getRecordByMsgId(bot, "REFIDX_not-a-message-id", groupScope), null)
+assert.equal(await markMsgRecordRecalled(bot, "REFIDX_not-a-message-id", groupScope), false)
+
+const officialRawId = await adaptMessageRecord(adapter, bot, {
+  version: MESSAGE_RECORD_VERSION,
+  direction: "incoming",
+  scene: "group",
+  self_id: "10000",
+  raw: {
+    id: "ROBOT1.0_raw-official-id",
+    message_id: "REFIDX_raw-reference-index",
+    group_id: "GROUP_OPENID",
+    user_id: "USER_OPENID",
+    timestamp: 791,
+    message: [{ type: "text", text: "raw id" }],
+  },
+})
+assert.equal(officialRawId.message_id, "ROBOT1.0_raw-official-id")
+
+await makeMessage(adapter, "10000", {
+  id: "ROBOT1.0_exact-reference-reply",
+  post_type: "message",
+  message_type: "group",
+  sub_type: "normal",
+  raw_message: "精确引用",
+  message: [{ type: "text", data: { text: "精确引用" } }],
+  sender: { user_id: "USER_OPENID", permissions: ["normal"] },
+  author: { username: "测试用户", member_role: "member" },
+  group_id: "GROUP_OPENID",
+  timestamp: 792,
+  message_scene: { ext: ["msg_idx=exact-reference-reply-idx", "ref_msg_idx=idx-1"] },
+})
+assert.equal(emitted.source.seq, "message-1")
+assert.equal(emitted.source.message, "hello")
 
 assert.equal(await markMsgRecordRecalled(bot, "message-1", groupScope), true)
 assert.equal(await getRecordByMsgId(bot, "message-1", groupScope), null)
