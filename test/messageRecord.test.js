@@ -73,7 +73,12 @@ const raw = {
   message: [{ type: "text", data: { text: "hello" } }],
   rawmessage: "hello",
   auth_token: "top-secret",
-  nested: { authToken: "nested-secret", keep: "kept" },
+  binary: Buffer.from([0, 1, 255]),
+  nested: {
+    authToken: "nested-secret",
+    keep: "kept",
+    view: new Uint8Array([1, 2, 3, 4]),
+  },
   messagescene: { ext: ["msgidx=idx-1", "authtoken=secret", "auth_token=secret-2"] },
 }
 const sanitized = sanitizeRawMessage(raw)
@@ -81,6 +86,12 @@ assert.deepEqual(sanitized.messagescene.ext, ["msgidx=idx-1"])
 assert.equal("auth_token" in sanitized, false)
 assert.equal("authToken" in sanitized.nested, false)
 assert.equal(sanitized.nested.keep, "kept")
+assert.deepEqual(sanitized.binary, { type: "Buffer", byteLength: 3 })
+assert.deepEqual(sanitized.nested.view, { type: "Uint8Array", byteLength: 4 })
+assert.deepEqual(
+  sanitizeRawMessage({ file: { type: "Buffer", data: [0, 1, 2] } }),
+  { file: { type: "Buffer", byteLength: 3 } },
+)
 
 const incoming = await adaptMessageRecord(adapter, bot, {
   version: MESSAGE_RECORD_VERSION,
@@ -274,6 +285,27 @@ assert.equal(storedOutgoing.raw_response.id, "outgoing-stored")
 assert.equal("auth_token" in storedOutgoing.raw_request, false)
 assert.equal("authToken" in storedOutgoing.raw_response, false)
 assert.equal(storedOutgoing.raw.id, "outgoing-stored")
+
+const videoBuffer = Buffer.alloc(1024, 1)
+await saveMsgRecord(bot, {
+  direction: "outgoing",
+  scene: "private",
+  self_id: "10000",
+  time: 128,
+  message_id: "binary-video",
+  user_openid: "FRIEND_OPENID",
+  sender: { user_openid: "BOT_OPENID", nickname: "QQBot", bot: true },
+  message: [{ type: "video", file: videoBuffer }],
+  raw_message: "[视频]",
+  raw_request: [{ type: "video", data: { file: videoBuffer } }],
+})
+const binaryLine = (await fs.readFile(privateFile, "utf8"))
+  .split(/\r?\n/)
+  .find(line => line.includes('"message_id":"binary-video"'))
+const storedBinary = JSON.parse(binaryLine)
+assert.deepEqual(storedBinary.message[0].file, { type: "Buffer", byteLength: 1024 })
+assert.deepEqual(storedBinary.raw_request[0].data.file, { type: "Buffer", byteLength: 1024 })
+assert.equal(binaryLine.length < 2000, true)
 
 await saveMsgRecord(bot, {
   direction: "incoming",
