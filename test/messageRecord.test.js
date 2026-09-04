@@ -15,6 +15,7 @@ global.redis = {
 const calls = []
 let emitted
 const adapter = {
+  config: { messageRetentionDays: 0 },
   sendGroupMsg: async (data, message) => calls.push(["reply", data, message]),
   recallGroupMsg: async (data, messageId) => calls.push(["recall", data, messageId]),
   sendFriendMsg: async (data, message) => calls.push(["friend-reply", data, message]),
@@ -415,6 +416,96 @@ const storedAfterRecall = (await Promise.all(
   .map(line => JSON.parse(line))
 assert.equal(storedAfterRecall.some(record => record.type === "message" && record.message_id === "message-1"), true)
 assert.equal(storedAfterRecall.some(record => record.type === "recall" && record.message_id === "message-1"), true)
+
+function getLocalDayTime (offset) {
+  const date = new Date()
+  date.setHours(12, 0, 0, 0)
+  date.setDate(date.getDate() + offset)
+  return Math.floor(date.getTime() / 1000)
+}
+
+function getLocalDayName (offset) {
+  const date = new Date(getLocalDayTime(offset) * 1000)
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-")
+}
+
+adapter.config.messageRetentionDays = 0
+for (let offset = -8; offset < 0; offset++) {
+  await saveMsgRecord(bot, {
+    direction: "incoming",
+    scene: "group",
+    self_id: "retention-bot",
+    time: getLocalDayTime(offset),
+    message_id: `retention-${offset}`,
+    group_openid: "RETENTION_GROUP",
+    message: [],
+    raw_message: "retention",
+  })
+}
+adapter.config.messageRetentionDays = 7
+await saveMsgRecord(bot, {
+  direction: "incoming",
+  scene: "group",
+  self_id: "retention-bot",
+  time: getLocalDayTime(0),
+  message_id: "retention-0",
+  group_openid: "RETENTION_GROUP",
+  message: [],
+  raw_message: "retention",
+})
+const retentionDirectory = path.join(
+  messageStoreRoot,
+  "retention-bot",
+  "messages",
+  "groups",
+  "RETENTION_GROUP",
+)
+assert.deepEqual(
+  (await fs.readdir(retentionDirectory)).sort(),
+  Array.from({ length: 7 }, (_, index) => `${getLocalDayName(index - 6)}.jsonl`),
+)
+await saveMsgRecord(bot, {
+  direction: "incoming",
+  scene: "group",
+  self_id: "retention-bot",
+  time: getLocalDayTime(-8),
+  message_id: "late-expired-record",
+  group_openid: "RETENTION_GROUP",
+  message: [],
+  raw_message: "late expired record",
+})
+assert.deepEqual(
+  (await fs.readdir(retentionDirectory)).sort(),
+  Array.from({ length: 7 }, (_, index) => `${getLocalDayName(index - 6)}.jsonl`),
+)
+
+adapter.config.messageRetentionDays = 0
+for (const offset of [-8, 0]) {
+  await saveMsgRecord(bot, {
+    direction: "incoming",
+    scene: "private",
+    self_id: "permanent-bot",
+    time: getLocalDayTime(offset),
+    message_id: `permanent-${offset}`,
+    user_openid: "PERMANENT_USER",
+    message: [],
+    raw_message: "permanent",
+  })
+}
+assert.deepEqual(
+  (await fs.readdir(path.join(
+    messageStoreRoot,
+    "permanent-bot",
+    "messages",
+    "users",
+    "PERMANENT_USER",
+  ))).sort(),
+  [`${getLocalDayName(-8)}.jsonl`, `${getLocalDayName(0)}.jsonl`],
+)
 
 const outgoing = await adaptMessageRecord(adapter, bot, {
   version: MESSAGE_RECORD_VERSION,
