@@ -21,6 +21,7 @@ const adapter = {
   recallFriendMsg: async (data, messageId) => calls.push(["friend-recall", data, messageId]),
   getGroupInfo: async data => ({ group_id: data.group_id, group_name: "测试群" }),
   setGroupMap: async () => {},
+  setFriendMap: async () => {},
 }
 const bot = {
   uin: "10000",
@@ -204,6 +205,45 @@ const privateFile = path.join(
   "1970-01-01.jsonl",
 )
 assert.equal(JSON.parse((await fs.readFile(privateFile, "utf8")).trim()).user_openid, "FRIEND_OPENID")
+
+await saveMsgRecord(bot, {
+  direction: "outgoing",
+  scene: "private",
+  self_id: "10000",
+  time: 126,
+  msg_idx: "private-contact-idx",
+  message_id: "private-contact-message",
+  user_openid: "FRIEND_OPENID",
+  sender: { user_openid: "BOT_OPENID", nickname: "QQBot", bot: true },
+  message: [{ type: "text", text: "联系主人消息(J0MBC)" }],
+  raw_message: "联系主人消息(J0MBC)\n消息内容:\n114514",
+})
+
+await makeMessage(adapter, "10000", {
+  id: "private-quoted-reply",
+  post_type: "message",
+  message_type: "private",
+  sub_type: "friend",
+  raw_message: "#回复 11144",
+  message: [{ type: "text", data: { text: "#回复 11144" } }],
+  sender: { user_id: "FRIEND_OPENID", permissions: ["normal"] },
+  author: { username: "主人" },
+  timestamp: 127,
+  message_scene: {
+    ext: [
+      "msg_idx=private-reply-idx",
+      "ref_msg_idx=private-contact-idx",
+      "auth_token=private-secret",
+    ],
+  },
+})
+assert.equal(emitted.source.seq, "private-contact-message")
+assert.equal(emitted.source.message, "联系主人消息(J0MBC)\n消息内容:\n114514")
+assert.equal((await emitted.getReply()).raw_message, "联系主人消息(J0MBC)\n消息内容:\n114514")
+const storedPrivateReply = await getRecordByMsgId(bot, "private-quoted-reply", {
+  userOpenId: "FRIEND_OPENID",
+})
+assert.equal((await storedPrivateReply.getReply()).message_id, "private-contact-message")
 
 await saveMsgRecord(bot, {
   direction: "outgoing",
