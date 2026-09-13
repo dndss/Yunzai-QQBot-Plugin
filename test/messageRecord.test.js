@@ -347,6 +347,58 @@ assert.deepEqual(parseElementMessage(attachmentElement), [{
   size: 691538,
 }])
 
+const quotedForwardElement = {
+  content: `=== 消息 1 ===
+[消息内容] [群聊的聊天记录]
+[消息类型] 引用消息
+[关联消息]
+--- 第1条 ---
+    [发送者] 我爱你
+    [附件1] 类型:图片 文件名:9C17183E.jpg 尺寸:1440x1920 大小:407.2KB URL:https://multimedia.nt.qq.com.cn/download?appid=1407&fileid=image&rkey=temporary&spec=0
+--- 第2条 ---
+    [消息内容] 原神送5自选限定五星了
+    [发送者] 我爱你`,
+}
+assert.deepEqual(parseElementMessage(quotedForwardElement, { parseReferenceForward: true }), [{
+  type: "node",
+  title: "[群聊的聊天记录]",
+  data: [{
+    nickname: "我爱你",
+    message: [{
+      type: "image",
+      file: "https://multimedia.nt.qq.com.cn/download?appid=1407&fileid=image&rkey=temporary&spec=0",
+      url: "https://multimedia.nt.qq.com.cn/download?appid=1407&fileid=image&rkey=temporary&spec=0",
+      name: "9C17183E.jpg",
+      width: 1440,
+      height: 1920,
+      size_text: "407.2KB",
+    }],
+  }, {
+    nickname: "我爱你",
+    message: [{ type: "text", text: "原神送5自选限定五星了" }],
+  }],
+}])
+
+await makeMessage(adapter, "10000", {
+  id: "quoted-forward-question",
+  post_type: "message",
+  message_type: "group",
+  sub_type: "normal",
+  raw_message: "里面图片说了什么",
+  message: [{ type: "text", data: { text: "里面图片说了什么" } }],
+  sender: { user_id: "USER_OPENID", permissions: ["normal"] },
+  author: { username: "测试用户", member_role: "member" },
+  group_id: "GROUP_OPENID",
+  timestamp: 790,
+  message_scene: {
+    ext: ["msg_idx=quoted-forward-question-idx", "ref_msg_idx=missing-forward-idx"],
+  },
+  msg_elements: [{ ...quotedForwardElement, msg_idx: "missing-forward-idx" }],
+})
+const quotedForwardReply = await emitted.getReply()
+assert.equal(quotedForwardReply.message[0].type, "node")
+assert.equal(quotedForwardReply.message[0].data[0].message[0].type, "image")
+
 await makeMessage(adapter, "10000", {
   post_type: "message",
   message_type: "group",
