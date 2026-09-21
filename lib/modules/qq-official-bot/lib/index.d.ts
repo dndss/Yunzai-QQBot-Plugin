@@ -2315,7 +2315,6 @@ export namespace Client {
     type Config<T extends ReceiverMode = ReceiverMode, M extends ApplicationPlatform = ApplicationPlatform> = {
         appid: string;
         secret: string;
-        sandbox?: boolean;
         timeout?: number;
         maxRetry?: number;
         dataDir?: string;
