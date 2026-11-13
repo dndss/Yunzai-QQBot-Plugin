@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
+import sdk from "qq-official-bot"
 
 const redisStore = new Map()
 global.redis = {
@@ -68,7 +69,7 @@ const raw = {
   userid: "USER_OPENID",
   groupid: "GROUP_OPENID",
   timestamp: 123,
-  author: { username: "测试用户", memberrole: "admin", id: "USER_OPENID" },
+  author: { username: "测试用户", member_nickname: "旧记录群昵称", memberrole: "admin", id: "USER_OPENID" },
   sender: { userid: "USER_OPENID", permissions: ["normal"] },
   message: [{ type: "text", data: { text: "hello" } }],
   rawmessage: "hello",
@@ -105,6 +106,7 @@ const incoming = await adaptMessageRecord(adapter, bot, {
 assert.equal(incoming.user_id, "USER_OPENID")
 assert.equal(incoming.group_id, "GROUP_OPENID")
 assert.equal(incoming.sender.nickname, "测试用户")
+assert.equal(incoming.sender.card, "旧记录群昵称")
 assert.equal(incoming.sender.role, "admin")
 assert.deepEqual(incoming.message, [{ type: "text", text: "hello" }])
 assert.equal(incoming.group.group_id, "GROUP_OPENID")
@@ -165,6 +167,7 @@ const groupScope = { groupOpenId: "GROUP_OPENID" }
 const restored = await getRecordByMsgId(bot, "message-1", groupScope)
 assert.equal(restored.user_id, "USER_OPENID")
 assert.equal(restored.sender.nickname, "测试用户")
+assert.equal(restored.sender.card, "旧记录群昵称")
 assert.equal(typeof restored.reply, "function")
 assert.equal(restored.message[0].qq, "AT_USER_OPENID")
 assert.equal(restored.message[0]._raw_user_id, "AT_USER_OPENID")
@@ -231,31 +234,54 @@ await saveMsgRecord(bot, {
   raw_message: "联系主人消息(J0MBC)\n消息内容:\n114514",
 })
 
-await makeMessage(adapter, "10000", {
-  id: "private-quoted-reply",
-  post_type: "message",
-  message_type: "private",
-  sub_type: "friend",
-  raw_message: "#回复 11144",
-  message: [{ type: "text", data: { text: "#回复 11144" } }],
-  sender: { user_id: "FRIEND_OPENID", permissions: ["normal"] },
-  author: { username: "主人" },
-  timestamp: 127,
-  message_scene: {
-    ext: [
-      "msg_idx=private-reply-idx",
-      "ref_msg_idx=private-contact-idx",
-      "auth_token=private-secret",
-    ],
+const parserBot = Object.create(sdk.Bot.prototype)
+parserBot.removeAt = () => {}
+parserBot.logger = { info () {}, warn () {}, debug () {} }
+let privateEvent
+parserBot.em = (name, data) => {
+  assert.equal(name, "message.private.friend")
+  privateEvent = data
+}
+parserBot.dispatchEvent("C2C_MESSAGE_CREATE", {
+  id: "private-event",
+  d: {
+    id: "private-quoted-reply",
+    content: "#回复 11144",
+    author: { id: "FRIEND_OPENID", user_openid: "FRIEND_OPENID", username: "主人" },
+    timestamp: new Date(127_000).toISOString(),
+    message_scene: {
+      ext: [
+        "msg_idx=private-reply-idx",
+        "ref_msg_idx=private-contact-idx",
+        "auth_token=private-secret",
+      ],
+    },
   },
 })
+assert.equal(privateEvent.sender.user_name, "主人")
+await makeMessage(adapter, "10000", privateEvent)
+assert.equal(emitted.sender.nickname, "主人")
+assert.equal(Object.hasOwn(emitted.sender, "card"), false)
 assert.equal(emitted.source.seq, "private-contact-message")
 assert.equal(emitted.source.message, "联系主人消息(J0MBC)\n消息内容:\n114514")
 assert.equal((await emitted.getReply()).raw_message, "联系主人消息(J0MBC)\n消息内容:\n114514")
 const storedPrivateReply = await getRecordByMsgId(bot, "private-quoted-reply", {
   userOpenId: "FRIEND_OPENID",
 })
+assert.equal(storedPrivateReply.sender.nickname, "主人")
 assert.equal((await storedPrivateReply.getReply()).message_id, "private-contact-message")
+
+parserBot.dispatchEvent("C2C_MESSAGE_CREATE", {
+  id: "private-no-nickname-event",
+  d: {
+    id: "private-no-nickname",
+    content: "你好",
+    author: { id: "FRIEND_OPENID", user_openid: "FRIEND_OPENID" },
+    timestamp: new Date(128_000).toISOString(),
+  },
+})
+await makeMessage(adapter, "10000", privateEvent)
+assert.equal(Object.hasOwn(emitted.sender, "nickname"), false)
 
 await saveMsgRecord(bot, {
   direction: "outgoing",
@@ -407,7 +433,7 @@ await makeMessage(adapter, "10000", {
   raw_message: "图里有什么",
   message: [{ type: "text", data: { text: "图里有什么" } }],
   sender: { user_id: "USER_OPENID", permissions: ["normal"] },
-  author: { username: "测试用户", member_role: "member" },
+  author: { username: "测试用户", member_nickname: "当前群昵称", member_role: "member" },
   group_id: "GROUP_OPENID",
   timestamp: 789,
   message_scene: {
@@ -420,6 +446,7 @@ await makeMessage(adapter, "10000", {
   msg_elements: [{ ...attachmentElement, msg_idx: "missing-live-image-idx" }],
 })
 assert.equal(emitted.source.message, "[图片]")
+assert.equal(emitted.sender.card, "当前群昵称")
 assert.equal(Object.hasOwn(emitted.source, "seq"), false)
 assert.deepEqual((await emitted.getReply()).message, parseElementMessage(attachmentElement))
 assert.equal((await emitted.getReply()).msg_idx, "missing-live-image-idx")
@@ -428,6 +455,8 @@ const liveStoredRecord = (await fs.readFile(groupFile, "utf8"))
   .split(/\r?\n/)
   .map(line => JSON.parse(line))
   .find(record => record.message_id === "live-image-reply")
+assert.equal(liveStoredRecord.sender.card, "当前群昵称")
+assert.equal((await getRecordByMsgId(bot, "live-image-reply", groupScope)).sender.card, "当前群昵称")
 assert.equal(liveStoredRecord.raw.msg_elements[0].attachments[0].filename, "test.jpg")
 assert.deepEqual(liveStoredRecord.raw.message_scene.ext, [
   "msg_idx=live-image-reply-idx",

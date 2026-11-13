@@ -37,6 +37,7 @@ const event = parserBot.processPayload("event-1", "message.group", {
   author: {
     id: "user-openid",
     username: "我爱你",
+    member_nickname: "群昵称",
     member_role: "owner",
   },
   timestamp: "2026-08-19T00:39:08+08:00",
@@ -73,6 +74,7 @@ assert.deepEqual(forward.data.nodes[4].attachments[0], {
   animated: true,
 })
 assert.equal(event.attachments[0].url, "https://example.com/outer.jpg")
+assert.equal(event.sender.member_nickname, "群昵称")
 
 const nestedEvent = parserBot.processPayload("event-2", "message.group", {
   id: "message-2",
@@ -126,6 +128,8 @@ const { setMessageStoreRoot } = await import("../lib/messageStore.js")
 setMessageStoreRoot(await fs.mkdtemp(path.join(os.tmpdir(), "qqbot-forward-message-")))
 const { makeMessage } = await import("../lib/messageBuilder.js")
 await makeMessage(adapter, "10000", event)
+assert.equal(emitted.sender.nickname, "我爱你")
+assert.equal(emitted.sender.card, "群昵称")
 
 const node = emitted.message[0]
 assert.equal(node.type, "node")
@@ -144,5 +148,34 @@ assert.deepEqual(node.data[2].message[0], {
 assert.equal(node.data[3].message[0].type, "video")
 assert.equal(node.data[4].message[1].type, "image")
 assert.equal(node.data[4].message[1].animated, true)
+
+for (const [type, memberNickname] of [
+  ["GROUP_MESSAGE_CREATE", "群昵称"],
+  ["GROUP_AT_MESSAGE_CREATE", "群昵称"],
+  ["GROUP_MESSAGE_CREATE", undefined],
+  ["GROUP_AT_MESSAGE_CREATE", ""],
+]) {
+  let parsed
+  parserBot.em = (name, data) => {
+    assert.equal(name, "message.group")
+    parsed = data
+  }
+  parserBot.dispatchEvent(type, {
+    id: type,
+    d: {
+      id: `${type}-${memberNickname}`,
+      group_id: "group-openid",
+      author: { id: "user-openid", username: "个人昵称", member_nickname: memberNickname },
+      timestamp: "2026-11-13T18:41:33+08:00",
+      content: "群消息",
+    },
+  })
+  assert.equal(parsed.sender.user_name, "个人昵称")
+  assert.equal(parsed.sender.member_nickname, memberNickname || undefined)
+  await makeMessage(adapter, "10000", parsed)
+  assert.equal(emitted.sender.nickname, "个人昵称")
+  if (memberNickname) assert.equal(emitted.sender.card, memberNickname)
+  else assert.equal(Object.hasOwn(emitted.sender, "card"), false)
+}
 
 console.log("forward message tests passed")

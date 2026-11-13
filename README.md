@@ -266,9 +266,11 @@ QQ 官方 Bot 事件中通常拿到的是 `openid`，不是传统 QQ 号或群�
 QQ 官方当前不提供单个群成员详情查询接口，插件直接使用群消息事件中的 `author` 字段：
 
 - `author.username` 封装为 `sender.nickname`
+- `author.member_nickname` 封装为 `sender.card`，并用于群成员缓存及历史消息查询
 - `author.member_role` 同步为 `role`、`member_role`、`is_owner` 和 `is_admin`
 - `author.bot` 和 `author.union_openid` 直接保留到 `sender`
-- 事件未提供 `sender.card`、`joined_at` 或 `join_time` 时，插件不会自行补造
+
+好友私聊消息的 `sender.nickname` 同样取自该条事件的 `author.username`。
 
 插件内置经过验证的维护版 `qq-official-bot` SDK 运行快照，不再从远程仓库安装 SDK 本体。
 

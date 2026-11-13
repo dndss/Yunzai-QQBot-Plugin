@@ -2017,6 +2017,9 @@ export namespace MessageAuditEvent {
 export class GroupMessageEvent extends Message implements MessageEvent {
     group_id: string;
     group_name: string;
+    sender: Message.Sender & {
+        member_nickname?: string;
+    };
     constructor(bot: Bot, payload: Partial<Message>);
     reply(message: Sendable, quote?: boolean): Promise<SendResult>;
 }
