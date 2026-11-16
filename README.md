@@ -274,6 +274,25 @@ QQ 官方当前不提供单个群成员详情查询接口，插件直接使用�
 
 插件内置经过验证的维护版 `qq-official-bot` SDK 运行快照，不再从远程仓库安装 SDK 本体。
 
+### 踢出群成员
+
+```js
+const group = Bot[e.self_id].pickGroup(e.group_id)
+await group.kickMember(user_id) // 成功返回 true
+await group.kickMember([user_id_1, user_id_2]) // 单次最多 20 人
+await group.pickMember(user_id).kick()
+```
+
+沿用 Yunzai 框架的 `group.kickMember(id, false)` 和 `member.kick()` 接口，
+自动复用群号、QQ 号到 OpenID 的映射，优先使用缓存中的原始 OpenID。
+空列表、超过 20 人或非法成员参数会报错，不自动拆批或重试；官方请求错误直接抛出。
+群主和机器人 WEB 管理端都需要开启“移除群成员”开关，接口限频为 30 QPM。
+
+`member.getInfo()` 只返回已有的群成员缓存；没有缓存就返回 `undefined`，
+由调用方按自身逻辑处理信息缺失，不新增群成员查询，也不默认授予或推断身份。
+使用真实群号、QQ 号时，需要配置对应的映射；直接传入 OpenID 时无需映射。
+本次接口不支持拉黑，`kickMember(id, true)` / `member.kick(true)` 会在请求前明确报错。
+
 
 ## 目录结构
 

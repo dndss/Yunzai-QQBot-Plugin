@@ -137,9 +137,12 @@ const adapter = new (class QQBotAdapter {
     return {
       ...this.pickFriend(id, user_id),
       ...i,
+      /** 仅暴露真实群成员缓存；未缓存的成员保持信息缺失。 */
+      getInfo: async () => Bot[id].gml.get(group_id)?.get(user_id),
       getAvatarUrl: size => this.pickFriend(id, i._raw_user_id || user_id).getAvatarUrl(size),
       /** 按 Yunzai 成员对象约定禁言当前成员 */
       mute: seconds => this.pickGroup(id, group_id).muteMember(user_id, seconds),
+      kick: (block = false) => this.pickGroup(id, group_id).kickMember(user_id, block),
     }
   }
 
@@ -167,6 +170,26 @@ const adapter = new (class QQBotAdapter {
       getInfo: (no_cache, add) => this.getGroupInfo(i, no_cache, add),
       pickMember: user_id => this.pickMember(id, group_id, user_id),
       getMemberMap: () => i.bot.gml.get(group_id),
+      /** 按 Yunzai 群对象约定踢出成员；支持单人或最多 20 人，不支持拉黑。 */
+      kickMember: async (user_id, block = false) => {
+        if (block) throw new Error("QQBot 群成员移除接口不支持踢出并拉黑，请使用普通踢人")
+        const userIds = Array.isArray(user_id) ? user_id : [user_id]
+        if (userIds.length < 1 || userIds.length > 20)
+          throw new RangeError("单次踢人必须指定 1 至 20 个成员")
+        const memberOpenids = []
+        for (const userId of userIds) {
+          if (!(typeof userId === "string" && userId.trim()) &&
+              !(typeof userId === "number" && Number.isSafeInteger(userId) && userId > 0))
+            throw new TypeError("成员 ID 必须是非空字符串或有效的 QQ 号")
+          if (String(userId).startsWith("qg_"))
+            throw new TypeError("QQBot 群成员移除接口不支持频道成员 ID")
+          const member = this.pickMember(id, group_id, userId)
+          memberOpenids.push(member._raw_user_id || await translateToOpenid(i.bot, member.user_id))
+        }
+        const groupOpenid = i._raw_group_id || await translateGroupToOpenid(i.bot, i.group_id) || i.group_id
+        const result = await i.bot.sdk.batchRemoveGroupMembers(groupOpenid, memberOpenids)
+        return result?.remove_members_result === "success"
+      },
       /** 按 Yunzai 约定以秒为单位禁言群成员，传 0 解除禁言 */
       muteMember: async (user_id, seconds) => {
         const groupOpenid = await translateGroupToOpenid(i.bot, i.group_id) || i._raw_group_id || i.group_id

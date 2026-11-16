@@ -122,6 +122,16 @@ export namespace Guild {
     }
 }
 export namespace User {
+    /** QQ OpenAPI 用户基本信息响应，不包含群身份或群名片 */
+    interface ApiInfo {
+        /** 跨应用关联用户 OpenID，仅绑定了第三方应用时有效 */
+        union_openid?: string;
+        username: string;
+        /** 用户头像原图 URL */
+        avatar: string;
+        /** 是否接收主动推送 */
+        allow_proactive_msg: boolean;
+    }
     interface Info {
         id: string;
         username: string;
@@ -1498,6 +1508,17 @@ export class MaterialService {
     deleteImage(imageId: string, options?: MaterialRequestOptions): Promise<void>;
 }
 /**
+ * 用户服务类 - 负责用户基本信息相关 API
+ */
+export class UserService {
+    private request;
+    constructor(request: AxiosInstance);
+    /**
+     * 获取用户基本信息，需要用户与机器人存在好友关系
+     */
+    getInfo(userOpenid: string): Promise<User.ApiInfo>;
+}
+/**
  * 消息段工厂函数集合
  * 提供便捷的消息段创建方法
  */
@@ -1874,6 +1895,10 @@ export namespace Group {
         allow_proactive_msg: boolean;
         recv_msg_setting: 'all' | 'only_mention' | 'mention_and_context';
         member_role: 'member' | 'owner' | 'admin';
+    }
+    /** 批量移除群成员响应 */
+    interface BatchRemoveMembersResult {
+        remove_members_result: string;
     }
     /** 群成员禁言操作类型 */
     type MemberMuteOperation = 'add' | 'update' | 'del';
@@ -2810,11 +2835,15 @@ export class BotService {
     replyAction(actionId: string, code?: ActionNoticeEvent.ReplyCode): Promise<boolean>;
 }
 /**
- * 群服务类 - 负责群基本信息相关 API
+ * 群服务类 - 负责群基本信息及成员管理相关 API
  */
 export class GroupService {
     private request;
     constructor(request: AxiosInstance);
+    /**
+     * 批量移除群成员，单次操作 1 至 20 个成员，不自动拆批或重试
+     */
+    batchRemoveMembers(groupOpenid: string, memberOpenids: string[]): Promise<Group.BatchRemoveMembersResult>;
     /**
      * 获取群基本信息
      */
@@ -2858,6 +2887,7 @@ export class Bot<T extends ReceiverMode = ReceiverMode, M extends ApplicationPla
     readonly botService: BotService;
     readonly groupService: GroupService;
     readonly materialService: MaterialService;
+    readonly userService: UserService;
     constructor(config: Bot.Config<T, M>);
     get middleware(): Middleware<M>;
     /**
@@ -3077,14 +3107,25 @@ export class Bot<T extends ReceiverMode = ReceiverMode, M extends ApplicationPla
      */
     setGroupMemberMuteState(group_id: string, members: Group.SetMemberMuteState[]): Promise<boolean>;
     /**
+     * 批量移除群成员
+     * @param group_id 群 OpenID
+     * @param member_openids 待移除成员 OpenID 列表，单次 1 至 20 个
+     */
+    batchRemoveGroupMembers(group_id: string, member_openids: string[]): Promise<Group.BatchRemoveMembersResult>;
+    /**
      * 获取好友列表
      */
     getFriendList(): Promise<void>;
     /**
-     * 获取好友信息
-     * @param friend_id
+     * 获取用户基本信息，需要用户与机器人存在好友关系
+     * @param user_openid 用户 OpenID
      */
-    getFriendInfo(friend_id: string): Promise<void>;
+    getUserInfo(user_openid: string): Promise<User.ApiInfo>;
+    /**
+     * 获取好友基本信息，与 getUserInfo 使用同一接口
+     * @param friend_id 用户 OpenID
+     */
+    getFriendInfo(friend_id: string): Promise<User.ApiInfo>;
     /**
      * 发送私聊信息
      * @param user_id
