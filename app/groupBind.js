@@ -2,13 +2,14 @@
  * #群绑定 命令处理 — 独立于 #QQ绑定
  *
  *   #群绑定          → 显示帮助
- *   #群绑定<群号>    → 校验 isMaster → true 绑定 / false 不响应
+ *   #群绑定<群号>    → 主人、群主或管理员可绑定，其他成员不响应
  *
  * 仅监听群消息（message.group.normal），因为只在群内有意义
  *
  * isMaster 判断：与 Yunzai loader.js 第 398 行逻辑一致
  *   cfg.master[data.self_id]?.includes(String(data.user_id))
  * 其中 data.user_id 经 applyUinMapping 已是真实 QQ 号（需先 #QQ绑定）
+ * 群主和管理员使用消息中的 sender.role 判断，无需先绑定个人 QQ
  */
 
 import { getAppid } from "../lib/uinMap.js"
@@ -26,6 +27,7 @@ async function handleGroupBindMessage (data) {
   try {
     // isMaster：参照 Yunzai loader.js (与 this.e.isMaster 等效)
     const isMaster = !!(data.user_id && cfg.master[data.self_id]?.includes(String(data.user_id)))
+    const canBind = isMaster || data.sender?.role === "owner" || data.sender?.role === "admin"
 
     const text = data.message
       ?.filter(item => item.type === "text")
@@ -36,9 +38,9 @@ async function handleGroupBindMessage (data) {
     // --- #群绑定<群号>：绑定当前群 ---
     const match = text.match(/^(?:#群绑定)\s*(\d{5,15})\s*$/)
     if (match) {
-      // 仅 master 可操作，非 master 静默不响应
-      if (!isMaster) {
-        Bot.makeLog?.("debug", [`[群绑定] 非master忽略: user_id=${data.user_id} self_id=${data.self_id}`], data.self_id)
+      // 主人、群主和管理员可操作，其他成员静默不响应
+      if (!canBind) {
+        Bot.makeLog?.("debug", [`[群绑定] 无权限忽略: user_id=${data.user_id} self_id=${data.self_id}`], data.self_id)
         return
       }
 
@@ -70,9 +72,9 @@ async function handleGroupBindMessage (data) {
 
     // --- #群绑定：显示帮助 ---
     if (text === "#群绑定") {
-      // 仅 master 可查看
-      if (!isMaster) {
-        Bot.makeLog?.("debug", [`[群绑定] 非master查看忽略: user_id=${data.user_id} self_id=${data.self_id}`], data.self_id)
+      // 主人、群主和管理员可查看
+      if (!canBind) {
+        Bot.makeLog?.("debug", [`[群绑定] 无权限查看忽略: user_id=${data.user_id} self_id=${data.self_id}`], data.self_id)
         return
       }
 

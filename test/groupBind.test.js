@@ -91,6 +91,62 @@ for (const mapping of [false, "987654321"]) {
   if (mapping) assert.match(replies[0][0], /987654321/)
 }
 
+// Group roles authorize raw OpenID users without a personal QQ binding.
+for (const role of ["owner", "admin"]) {
+  await dispatch({
+    user_id: "unbound-user-openid",
+    sender: { user_id: "unbound-user-openid", role },
+    raw_message: bindText,
+    message: [at, text(bindText)],
+  })
+  assert.deepEqual(savedMappings, [["appid", "group-openid", "987654321"]])
+  assert.equal(mappingQueries.length, 0)
+  assert.equal(replies.length, 1)
+  assert.match(replies[0], /987654321/)
+
+  for (const mapping of [false, "987654321"]) {
+    currentMapping = mapping
+    await dispatch({
+      user_id: "unbound-user-openid",
+      sender: { user_id: "unbound-user-openid", role },
+      raw_message: command,
+      message: [at, text(command)],
+    })
+    assert.equal(savedMappings.length, 0)
+    assert.deepEqual(mappingQueries, [["appid", "group-openid"]])
+    assert.equal(replies.length, 1)
+    assert.equal(replies[0][1].type, "button")
+    if (mapping) assert.match(replies[0][0], /987654321/)
+  }
+}
+
+// A master remains authorized even without a privileged group role.
+for (const value of [bindText, command]) {
+  await dispatch({
+    sender: { user_id: "123456789", role: "member" },
+    raw_message: value,
+    message: [text(value)],
+  })
+  assert.equal(replies.length, 1)
+  assert.equal(savedMappings.length, value === bindText ? 1 : 0)
+  assert.equal(mappingQueries.length, value === command ? 1 : 0)
+}
+
+// Ordinary, missing and unknown roles cannot bind or view a group's mapping.
+for (const role of ["member", undefined, "unknown"]) {
+  for (const value of [bindText, command]) {
+    await dispatch({
+      user_id: "unbound-user-openid",
+      sender: { user_id: "unbound-user-openid", role },
+      raw_message: value,
+      message: [text(value)],
+    })
+    assert.equal(savedMappings.length, 0)
+    assert.equal(mappingQueries.length, 0)
+    assert.equal(replies.length, 0)
+  }
+}
+
 for (const overrides of [
   { user_id: "other-user" },
   { user_id: "other-user", raw_message: command, message: [at, text(command)] },
